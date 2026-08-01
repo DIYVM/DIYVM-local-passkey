@@ -26,6 +26,12 @@
   </p>
 
   <p>
+    <strong>简体中文</strong>
+    ·
+    <a href="./README_EN.md">English</a>
+  </p>
+
+  <p>
     <a href="https://www.diyvm.com">官方网站</a>
     ·
     <a href="https://github.com/DIYVM/DIYVM-local-passkey/releases/latest">下载最新版</a>
