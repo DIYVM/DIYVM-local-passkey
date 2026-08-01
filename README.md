@@ -28,7 +28,7 @@
   <p>
     <a href="https://www.diyvm.com">官方网站</a>
     ·
-    <a href="https://github.com/DIYVM/DIYVM-local-passkey/actions">下载构建</a>
+    <a href="https://github.com/DIYVM/DIYVM-local-passkey/releases/latest">下载最新版</a>
     ·
     <a href="./docs/security-boundary.md">安全边界</a>
   </p>
@@ -92,12 +92,12 @@ flowchart LR
 
 ## 安装测试版
 
-### 从 GitHub Actions 下载
+### 从 GitHub Releases 下载
 
-1. 打开项目的 [GitHub Actions](https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml)。
-2. 选择 `main` 分支最近一次成功的 **Build Chrome Extension**。
-3. 下载 `DIYVM-Local-Passkey-Chrome-0.3.0` 构建产物。
-4. 解压 Actions 产物，再解压其中的 `DIYVM-Local-Passkey-Chrome-0.3.0.zip`。
+1. 打开项目的 [最新 Release](https://github.com/DIYVM/DIYVM-local-passkey/releases/latest)。
+2. 下载 `DIYVM-Local-Passkey-Chrome-0.3.0.zip`。
+3. 可使用同一 Release 中的 `.sha256` 文件校验下载完整性。
+4. 解压扩展 ZIP。
 5. 在 Chrome 打开 `chrome://extensions` 并开启“开发者模式”。
 6. 点击“加载已解压的扩展程序”，选择包含 `manifest.json` 的目录。
 
@@ -168,6 +168,21 @@ Actions 中自动运行。
 自动测试覆盖 IndexedDB 加密读写与原子恢复、主密码锁定与解锁、ES256 注册和
 登录、attestation 与 COSE 公钥、签名计数器、加密备份恢复、RP ID 边界、消息
 校验以及 Manifest 权限约束。
+
+## 发布流程
+
+`main` 分支的每次推送和拉取请求都会执行检查、测试、构建，并保存一个保留
+30 天的 Actions Artifact。正式版本通过与 `extension/package.json` 版本一致的
+Git 标签发布：
+
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+标签构建通过后，GitHub Actions 会自动创建对应 Release，并上传扩展 ZIP 和
+SHA-256 校验文件。Release 页面自动生成的 `Source code (zip)` 是源码快照，不是
+可安装的 Chrome 扩展包。
 
 ## 项目结构
 

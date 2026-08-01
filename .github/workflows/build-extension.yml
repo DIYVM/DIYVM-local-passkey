@@ -1,14 +1,14 @@
-name: Build Chrome Extension
+name: Build and Release Chrome Extension
 
 on:
   push:
     branches:
       - main
-      - pure-extension
+    tags:
+      - "v*"
   pull_request:
     branches:
       - main
-      - pure-extension
   workflow_dispatch:
 
 permissions:
@@ -23,6 +23,9 @@ jobs:
     name: Check, test, and package
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      archive: ${{ steps.package.outputs.archive }}
+      version: ${{ steps.package.outputs.version }}
 
     steps:
       - name: Check out source
@@ -58,7 +61,10 @@ jobs:
             cd extension/dist
             zip -q -r "../../artifacts/${ARCHIVE}" .
           )
-          sha256sum "artifacts/${ARCHIVE}" > "artifacts/${ARCHIVE}.sha256"
+          (
+            cd artifacts
+            sha256sum "${ARCHIVE}" > "${ARCHIVE}.sha256"
+          )
           unzip -tq "artifacts/${ARCHIVE}"
           unzip -Z1 "artifacts/${ARCHIVE}" | grep -qx "manifest.json"
           echo "archive=${ARCHIVE}" >> "$GITHUB_OUTPUT"
@@ -73,3 +79,62 @@ jobs:
             artifacts/${{ steps.package.outputs.archive }}.sha256
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      ARCHIVE: ${{ needs.build-extension.outputs.archive }}
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.build-extension.outputs.version }}
+
+    steps:
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${RELEASE_TAG}" != "v${VERSION}" ]]; then
+            echo "::error::Tag ${RELEASE_TAG} does not match extension version ${VERSION}"
+            exit 1
+          fi
+
+      - name: Download tested package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: DIYVM-Local-Passkey-Chrome-${{ needs.build-extension.outputs.version }}
+          path: release-assets
+
+      - name: Verify release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "release-assets/${ARCHIVE}"
+          test -f "release-assets/${ARCHIVE}.sha256"
+          (
+            cd release-assets
+            sha256sum -c "${ARCHIVE}.sha256"
+          )
+          unzip -tq "release-assets/${ARCHIVE}"
+          unzip -Z1 "release-assets/${ARCHIVE}" | grep -qx "manifest.json"
+
+      - name: Create GitHub Release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "${RELEASE_TAG}" \
+            "release-assets/${ARCHIVE}" \
+            "release-assets/${ARCHIVE}.sha256" \
+            --verify-tag \
+            --title "DIYVM Local Passkey ${VERSION}" \
+            --generate-notes
