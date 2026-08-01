@@ -59,4 +59,5 @@ npm run build
 不在白名单内的网站和条件式 WebAuthn 请求继续使用 Chrome 原生实现。
 
 webauthn.io 是当前自动化验证目标。Amazon 使用同一套页面桥接和序列化
-`PublicKeyCredential` 返回路径，真实账户结果必须人工测试。
+`PublicKeyCredential` 返回路径，真实账户已人工验证通行密钥创建和登录，但尚未
+纳入自动化测试。

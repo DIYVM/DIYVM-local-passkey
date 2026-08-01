@@ -58,5 +58,6 @@ Page Script 拦截非条件式 `navigator.credentials.get()`，序列化 challen
 返回恢复后的 `PublicKeyCredential` 对象；对象保留浏览器原型，并实现
 `toJSON()`、`getClientExtensionResults()` 以及注册响应的公钥和传输方式方法。
 
-webauthn.io 属于自动化验证范围。Amazon 的真实账户兼容性仍需人工测试；不支持的
-参数、条件式请求或用户选择系统验证器时，会调用拦截前保存的 Chrome 原生方法。
+webauthn.io 属于自动化验证范围。Amazon 真实账户已人工验证通行密钥创建和登录，
+但尚未纳入自动化测试；不支持的参数、条件式请求或用户选择系统验证器时，会调用
+拦截前保存的 Chrome 原生方法。

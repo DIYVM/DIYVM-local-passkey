@@ -83,7 +83,7 @@ flowchart LR
 | Chrome | `120` 及以上 |
 | 扩展规范 | Manifest V3 |
 | `webauthn.io` | 自动测试覆盖注册、登录和签名验证 |
-| `amazon.com` 及其 HTTPS 子域 | 已加入白名单，真实账户流程需人工验证 |
+| `amazon.com` 及其 HTTPS 子域 | 真实账户已人工验证通行密钥创建和登录；尚未纳入自动化测试 |
 | 条件式 WebAuthn | 不拦截，继续使用 Chrome 原生实现 |
 | 算法 | 当前仅支持 ES256 |
 
