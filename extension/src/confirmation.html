@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DIYVM Local Passkey 确认</title>
+    <link rel="stylesheet" href="confirmation.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="logo.png" alt="">
+        <div>
+          <span>DIYVM LOCAL PASSKEY</span>
+          <strong>本次 WebAuthn 操作需要确认</strong>
+        </div>
+      </header>
+
+      <section class="content">
+        <span class="micro-label">LOCAL CONFIRMATION</span>
+        <h1 id="confirmation-title">正在读取请求…</h1>
+        <p id="confirmation-description">
+          请稍候，插件正在校验网站和本地凭据库。
+        </p>
+
+        <dl>
+          <div>
+            <dt>网站</dt>
+            <dd id="confirmation-site">—</dd>
+          </div>
+        </dl>
+
+        <label id="account-group" for="confirmation-account">
+          账户
+          <select id="confirmation-account" disabled>
+            <option>正在读取…</option>
+          </select>
+        </label>
+
+        <p id="confirmation-error" class="error" hidden></p>
+      </section>
+
+      <div class="actions">
+        <button id="approve" class="primary" type="button" disabled>使用本地通行密钥</button>
+        <button id="fallback" type="button" disabled>改用 Chrome / 系统</button>
+        <button id="cancel" type="button" disabled>取消</button>
+      </div>
+
+      <footer>
+        <a href="https://www.diyvm.com/" target="_blank" rel="noopener noreferrer">www.diyvm.com</a>
+        <span>PRIVATE · LOCAL · ENCRYPTED</span>
+      </footer>
+    </main>
+    <script type="module" src="confirmation.js"></script>
+  </body>
+</html>

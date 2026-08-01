@@ -1,0 +1,263 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", sans-serif;
+  color: #07142a;
+  background: #eef4fb;
+  --navy: #07142a;
+  --blue: #007bfc;
+  --cyan: #42c7ff;
+  --line: #d2e0f0;
+  --muted: #63728a;
+  --surface: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-width: 420px;
+  min-height: 500px;
+  margin: 0;
+}
+
+body {
+  background: #eef4fb;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+main {
+  min-height: 500px;
+  background: var(--surface);
+}
+
+header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 18px 20px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 90% 10%, rgb(66 199 255 / 28%), transparent 38%),
+    linear-gradient(128deg, #07142a, #0a2e62 62%, #1660ae);
+}
+
+header img {
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  background: #ffffff;
+}
+
+header div {
+  display: grid;
+  gap: 3px;
+}
+
+header span,
+.micro-label,
+footer {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: 0.1em;
+}
+
+header span {
+  color: #9edfff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+header strong {
+  font-size: 14px;
+}
+
+.content {
+  padding: 24px 24px 18px;
+}
+
+.micro-label {
+  color: #1660ae;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+h1 {
+  margin: 7px 0 0;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.content > p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+dl {
+  margin: 20px 0 0;
+  border: 1px solid var(--line);
+}
+
+dl div {
+  padding: 12px;
+  background: #f5f8fc;
+}
+
+dt {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+dd {
+  overflow: hidden;
+  margin: 5px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+select {
+  width: 100%;
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid #b7cbe2;
+  border-radius: 0;
+  color: var(--navy);
+  background: #ffffff;
+}
+
+.error {
+  color: #b4232d !important;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 24px 20px;
+}
+
+button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #b7cbe2;
+  border-radius: 0;
+  color: #1660ae;
+  background: #edf5ff;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+button.primary {
+  grid-column: 1 / -1;
+  border-color: var(--blue);
+  color: #ffffff;
+  background: var(--blue);
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 20px;
+  border-top: 1px solid var(--line);
+  color: #8291a4;
+  background: #f5f8fc;
+  font-size: 8px;
+}
+
+footer a {
+  color: #1660ae;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #eef7ff;
+    background: #07142a;
+    --line: rgb(81 185 255 / 30%);
+    --muted: #9bb8d8;
+    --surface: #07142a;
+  }
+
+  body {
+    background: #07142a;
+  }
+
+  main {
+    background:
+      linear-gradient(rgb(81 185 255 / 8%) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(81 185 255 / 8%) 1px, transparent 1px),
+      #07142a;
+    background-size: 48px 48px;
+  }
+
+  header {
+    border-bottom: 1px solid var(--line);
+    background: rgb(7 20 42 / 72%);
+  }
+
+  .micro-label {
+    color: var(--cyan);
+  }
+
+  dl div,
+  select {
+    color: #ffffff;
+    background: rgb(13 42 88 / 72%);
+  }
+
+  select {
+    border-color: rgb(81 185 255 / 42%);
+  }
+
+  button {
+    border-color: rgb(66 199 255 / 46%);
+    color: #9edfff;
+    background: rgb(13 42 88 / 68%);
+  }
+
+  button.primary {
+    color: #07142a;
+    background: var(--cyan);
+  }
+
+  footer {
+    border-top-color: var(--line);
+    background: rgb(7 20 42 / 75%);
+  }
+
+  footer a {
+    color: var(--cyan);
+  }
+}

@@ -1,0 +1,19 @@
+.DS_Store
+node_modules/
+extension/dist/
+artifacts/
+Windows-Test-Package-*/
+Windows-Test-Package-*.zip
+*.log
+
+# Local vaults and release secrets must never be committed.
+data/
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12

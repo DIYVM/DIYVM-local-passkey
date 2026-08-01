@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local Passkey page bridge smoke test</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+
+      body {
+        margin: 3rem auto;
+        max-width: 52rem;
+        padding: 0 1.5rem;
+      }
+
+      [data-status="passed"] {
+        color: #16803c;
+      }
+
+      [data-status="failed"] {
+        color: #c52b2b;
+      }
+
+      li {
+        margin-block: 0.45rem;
+      }
+    </style>
+    <script src="./browser-harness.js"></script>
+    <script src="../dist/page-bridge.js"></script>
+  </head>
+  <body>
+    <h1>Local Passkey page bridge smoke test</h1>
+    <p id="status" data-status="running">Running…</p>
+    <ol id="results"></ol>
+  </body>
+</html>

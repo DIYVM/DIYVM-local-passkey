@@ -1,0 +1,24 @@
+{
+  "name": "diyvm-local-passkey",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "extension"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @diyvm/local-passkey-extension",
+    "check": "npm run check --workspace @diyvm/local-passkey-extension",
+    "test": "node --import tsx --test extension/test/*.test.ts",
+    "test:webauthn-io": "node --import tsx extension/scripts/test-webauthn-io.ts",
+    "test:pure": "npm run check && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

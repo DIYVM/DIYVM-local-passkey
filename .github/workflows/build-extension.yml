@@ -1,0 +1,75 @@
+name: Build Chrome Extension
+
+on:
+  push:
+    branches:
+      - main
+      - pure-extension
+  pull_request:
+    branches:
+      - main
+      - pure-extension
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extension-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-extension:
+    name: Check, test, and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check TypeScript
+        run: npm run check
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Create installable ZIP
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./extension/package.json').version")"
+          ARCHIVE="DIYVM-Local-Passkey-Chrome-${VERSION}.zip"
+          mkdir -p artifacts
+          (
+            cd extension/dist
+            zip -q -r "../../artifacts/${ARCHIVE}" .
+          )
+          sha256sum "artifacts/${ARCHIVE}" > "artifacts/${ARCHIVE}.sha256"
+          unzip -tq "artifacts/${ARCHIVE}"
+          unzip -Z1 "artifacts/${ARCHIVE}" | grep -qx "manifest.json"
+          echo "archive=${ARCHIVE}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Chrome extension
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: DIYVM-Local-Passkey-Chrome-${{ steps.package.outputs.version }}
+          path: |
+            artifacts/${{ steps.package.outputs.archive }}
+            artifacts/${{ steps.package.outputs.archive }}.sha256
+          if-no-files-found: error
+          retention-days: 30

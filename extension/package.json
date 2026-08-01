@@ -1,0 +1,15 @@
+{
+  "name": "@diyvm/local-passkey-extension",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.326",
+    "esbuild": "^0.25.5",
+    "fake-indexeddb": "^6.2.5"
+  }
+}

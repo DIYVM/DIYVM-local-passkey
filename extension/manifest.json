@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "DIYVM Local Passkey",
+  "version": "0.3.0",
+  "description": "Creates, stores, and uses encrypted local passkeys entirely inside Chrome.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArk22g6dcmyB95eTA/hLRq0LvNpPZQps8dVEZe7K66aXWB2pF53KhZV1PbyugrvlcFvxx6K8TH0lYEfdrrhDT8AonthLPzoZc+UzU7NJpeXWd3GBJ9V8s++AvKpbxC0yL2HNEcw928RPqfhceEARIEFwWiY11L8j3Z6r1+W1g/RriGuji7ehpWxXDBNe2Com68IMRxGFx3r2Iy5CUDHkrbe5ELt7a4xV1C/AEeDnDwQvr6EG0fw9uKM826A4p2IPcDkYk8vNRzwNT9UhxcA85LqqezKdmn0MtXkBBYu3Yj6lu0byyf38aKrdn73qGbLnjhgrCzK5+h/flTElfuKTgcQIDAQAB",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://webauthn.io/*",
+    "https://*.amazon.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "DIYVM Local Passkey",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://webauthn.io/*",
+        "https://*.amazon.com/*"
+      ],
+      "js": [
+        "page-bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://webauthn.io/*",
+        "https://*.amazon.com/*"
+      ],
+      "js": [
+        "content-script.js"
+      ],
+      "run_at": "document_start",
+      "world": "ISOLATED",
+      "all_frames": false
+    }
+  ]
+}

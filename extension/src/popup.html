@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DIYVM Local Passkey</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <header class="brand-header">
+          <span class="brand-logo" aria-hidden="true">
+            <img src="logo.png" alt="">
+          </span>
+          <div class="brand-copy">
+            <h1>DIYVM Local Passkey</h1>
+            <a
+              class="brand-site"
+              href="https://www.diyvm.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >www.diyvm.com</a>
+          </div>
+          <span id="theme-mode" class="theme-mode">AUTO / A</span>
+        </header>
+
+        <section class="connection" aria-live="polite">
+          <div id="status-dot" class="status-dot disconnected"></div>
+          <div>
+            <span class="micro-label">PURE EXTENSION</span>
+            <h2 id="status-title">正在启动纯插件</h2>
+            <p id="status-detail">正在读取本地加密库状态…</p>
+          </div>
+        </section>
+
+        <section class="vault-summary">
+          <div>
+            <span class="micro-label">LOCAL VAULT</span>
+            <strong id="vault-state">—</strong>
+          </div>
+          <div id="vault-orbit" class="vault-orbit" aria-hidden="true">
+            <span id="vault-orbit-symbol">●</span>
+          </div>
+        </section>
+      </section>
+
+      <section class="workspace">
+        <form id="vault-form" class="vault-form" hidden>
+          <label for="master-password">主密码</label>
+          <div class="password-row">
+            <input
+              id="master-password"
+              name="master-password"
+              type="password"
+              minlength="12"
+              maxlength="1024"
+              required
+            >
+            <button id="vault-action" type="submit">解锁凭据库</button>
+          </div>
+          <small>至少 12 个字符；遗失后无法恢复本地凭据。</small>
+        </form>
+
+        <section id="credential-section" class="credentials" hidden>
+          <div class="section-heading">
+            <div>
+              <span>LOCAL CREDENTIAL LEDGER</span>
+              <h3>本地通行密钥</h3>
+            </div>
+            <small>仅保存在本机</small>
+          </div>
+          <p id="credential-empty" class="empty">暂无本地凭据</p>
+          <ul id="credential-list"></ul>
+        </section>
+
+        <section class="backup-tools" aria-labelledby="backup-heading">
+          <div class="section-heading">
+            <div>
+              <span>ENCRYPTED LOCAL BACKUP</span>
+              <h3 id="backup-heading">纯插件数据备份</h3>
+            </div>
+            <small>可移植加密文件</small>
+          </div>
+          <p class="backup-description">
+            导出文件仅包含加密数据。恢复时仍需原主密码。
+          </p>
+          <div class="backup-actions">
+            <button id="export-backup" class="secondary" type="button">导出备份</button>
+            <button id="import-backup" class="secondary" type="button">导入备份</button>
+          </div>
+          <input
+            id="import-backup-file"
+            type="file"
+            accept=".json,.diyvmpasskey.json,application/json"
+            hidden
+          >
+          <p id="backup-status" class="backup-status" aria-live="polite"></p>
+        </section>
+
+        <div class="actions">
+          <button id="lock-vault" class="secondary" type="button" hidden>锁定凭据库</button>
+          <button id="refresh" class="secondary" type="button">刷新状态</button>
+        </div>
+
+        <p class="notice">主密码不会保存；Chrome 关闭或凭据库空闲 15 分钟后需要重新解锁。</p>
+      </section>
+
+      <dl class="metrics">
+        <div>
+          <dt>EXT</dt>
+          <dd id="extension-version">—</dd>
+        </div>
+        <div>
+          <dt>STORE</dt>
+          <dd id="storage-engine">—</dd>
+        </div>
+        <div>
+          <dt>PROTOCOL</dt>
+          <dd id="protocol-version">—</dd>
+        </div>
+        <div>
+          <dt>PASSKEYS</dt>
+          <dd><span id="credential-count">0</span></dd>
+        </div>
+      </dl>
+
+      <footer class="product-footer">
+        <a href="https://www.diyvm.com/" target="_blank" rel="noopener noreferrer">DIYVM 官网</a>
+        <span>LOCAL ONLY · CHROME</span>
+      </footer>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
