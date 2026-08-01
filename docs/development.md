@@ -1,6 +1,6 @@
 # 纯插件开发说明
 
-`pure-extension` 分支将 WebAuthn 软件验证器完整放入 Manifest V3 扩展，不依赖
+本项目将 WebAuthn 软件验证器完整放入 Manifest V3 扩展，不依赖
 Native Messaging、Windows 服务、安装器或本机可执行文件。
 
 ## 仓库结构
@@ -34,7 +34,7 @@ npm run build
 3. 解析并检查 attestation、COSE 公钥、RP ID 哈希和标志位。
 4. 生成登录 assertion，并用注册公钥验证 DER 格式签名。
 5. 验证签名计数器从 0 递增到 1、2。
-6. 锁定、错误密码拒绝、正确密码恢复和 15 分钟空闲锁定。
+6. 手动锁定、错误密码拒绝、正确密码恢复和长会话保持解锁。
 7. 导出真实加密凭据，恢复到新 IndexedDB 后继续登录。
 8. 拒绝重复凭据、越界 RP ID 和被篡改的备份。
 
@@ -58,5 +58,5 @@ npm run build
 
 不在白名单内的网站和条件式 WebAuthn 请求继续使用 Chrome 原生实现。
 
-webauthn.io 是本分支自动化验证目标。Amazon 使用同一套页面桥接和序列化
+webauthn.io 是当前自动化验证目标。Amazon 使用同一套页面桥接和序列化
 `PublicKeyCredential` 返回路径，真实账户结果必须人工测试。

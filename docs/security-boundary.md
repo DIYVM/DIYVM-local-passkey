@@ -22,7 +22,7 @@
 - PBKDF2-SHA-256 使用随机 128 位 salt 和 600,000 次迭代，只用于包装 Vault Key。
 - IndexedDB 不保存明文 RP ID、账户名、userHandle 或私钥。
 - 解锁后的原始 Vault Key 保存到 Chrome `storage.session`，默认只允许扩展可信上下文
-  访问；锁定、Chrome 关闭或 15 分钟空闲后清除。
+  访问；用户手动锁定、Chrome 重启或插件更新、重载时清除。
 - JavaScript 和浏览器内存不提供与硬件安全模块相同的不可提取或可靠清零保证。
 
 ## 备份

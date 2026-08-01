@@ -26,7 +26,6 @@ const VAULT_KEY_AAD = new TextEncoder().encode(
 );
 const RECORD_AAD_PREFIX = "diyvm-local-passkey:credential:v1:";
 const SESSION_KEY = "pureVaultSession";
-const VAULT_IDLE_TIMEOUT_MS = 15 * 60 * 1_000;
 
 export interface StoredSoftwareCredential {
   schemaVersion: 1;
@@ -45,7 +44,6 @@ export interface StoredSoftwareCredential {
 
 interface VaultSession {
   vaultKey: string;
-  lastActivityAt: number;
 }
 
 export interface VaultSessionStorage {
@@ -254,12 +252,8 @@ export class PureVault {
     credentialId: string
   ): Promise<StoredSoftwareCredential | undefined> {
     const key = await this.requireVaultKey();
-    try {
-      const record = await this.store.readCredential(credentialId);
-      return record ? await decryptCredential(key, record) : undefined;
-    } finally {
-      await this.touchSession();
-    }
+    const record = await this.store.readCredential(credentialId);
+    return record ? await decryptCredential(key, record) : undefined;
   }
 
   async saveCredential(
@@ -267,22 +261,18 @@ export class PureVault {
   ): Promise<void> {
     validateStoredCredential(credential);
     const key = await this.requireVaultKey();
-    try {
-      const existing = await this.store.readCredential(
-        credential.credentialId
+    const existing = await this.store.readCredential(
+      credential.credentialId
+    );
+    if (existing) {
+      throw new PureExtensionError(
+        "INVALID_STATE",
+        "凭据 ID 已经存在"
       );
-      if (existing) {
-        throw new PureExtensionError(
-          "INVALID_STATE",
-          "凭据 ID 已经存在"
-        );
-      }
-      await this.store.writeCredential(
-        await encryptCredential(key, credential)
-      );
-    } finally {
-      await this.touchSession();
     }
+    await this.store.writeCredential(
+      await encryptCredential(key, credential)
+    );
   }
 
   async updateCredential(
@@ -290,43 +280,31 @@ export class PureVault {
   ): Promise<void> {
     validateStoredCredential(credential);
     const key = await this.requireVaultKey();
-    try {
-      const existing = await this.store.readCredential(
-        credential.credentialId
+    const existing = await this.store.readCredential(
+      credential.credentialId
+    );
+    if (!existing) {
+      throw new PureExtensionError(
+        "CREDENTIAL_NOT_FOUND",
+        "找不到本地通行密钥"
       );
-      if (!existing) {
-        throw new PureExtensionError(
-          "CREDENTIAL_NOT_FOUND",
-          "找不到本地通行密钥"
-        );
-      }
-      await this.store.writeCredential(
-        await encryptCredential(key, credential)
-      );
-    } finally {
-      await this.touchSession();
     }
+    await this.store.writeCredential(
+      await encryptCredential(key, credential)
+    );
   }
 
   async deleteCredential(credentialId: string): Promise<boolean> {
     await this.requireVaultKey();
-    try {
-      return await this.store.deleteCredential(credentialId);
-    } finally {
-      await this.touchSession();
-    }
+    return this.store.deleteCredential(credentialId);
   }
 
   private async decryptAllCredentials(): Promise<StoredSoftwareCredential[]> {
     const key = await this.requireVaultKey();
-    try {
-      const records = await this.store.listCredentials();
-      return await Promise.all(
-        records.map((record) => decryptCredential(key, record))
-      );
-    } finally {
-      await this.touchSession();
-    }
+    const records = await this.store.listCredentials();
+    return Promise.all(
+      records.map((record) => decryptCredential(key, record))
+    );
   }
 
   private async requireVaultKey(): Promise<CryptoKey> {
@@ -363,13 +341,6 @@ export class PureVault {
     if (!session) {
       return undefined;
     }
-    if (
-      this.now() - session.lastActivityAt >= VAULT_IDLE_TIMEOUT_MS ||
-      session.lastActivityAt > this.now() + 60_000
-    ) {
-      await this.sessionStorage.clear();
-      return undefined;
-    }
     try {
       decodeBase64Url(session.vaultKey, VAULT_KEY_BYTES, VAULT_KEY_BYTES);
       return session;
@@ -381,19 +352,8 @@ export class PureVault {
 
   private async writeSession(keyBytes: Uint8Array<ArrayBufferLike>): Promise<void> {
     await this.sessionStorage.write({
-      vaultKey: encodeBase64Url(keyBytes),
-      lastActivityAt: this.now()
+      vaultKey: encodeBase64Url(keyBytes)
     });
-  }
-
-  private async touchSession(): Promise<void> {
-    const session = await this.readActiveSession();
-    if (session) {
-      await this.sessionStorage.write({
-        ...session,
-        lastActivityAt: this.now()
-      });
-    }
   }
 }
 
@@ -591,7 +551,6 @@ function isVaultSession(value: unknown): value is VaultSession {
   return (
     typeof value === "object" &&
     value !== null &&
-    typeof (value as Partial<VaultSession>).vaultKey === "string" &&
-    typeof (value as Partial<VaultSession>).lastActivityAt === "number"
+    typeof (value as Partial<VaultSession>).vaultKey === "string"
   );
 }

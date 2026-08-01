@@ -181,7 +181,7 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     assert.equal(summaries[0]?.signCount, 2);
   });
 
-  it("encrypts records, locks on idle, and rejects a wrong password", async () => {
+  it("encrypts records, stays unlocked, and rejects a wrong password", async () => {
     await authenticator.makeCredential(
       "https://webauthn.io",
       creationOptions()
@@ -193,6 +193,9 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     );
     assert.doesNotMatch(ciphertextText, /webauthn\.io|tester@example\.com/);
 
+    now += 24 * 60 * 60 * 1_000;
+    assert.equal((await vault.status()).vaultState, "unlocked");
+
     await vault.lock();
     assert.equal((await vault.status()).vaultState, "locked");
     await assert.rejects(
@@ -203,9 +206,6 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     );
     await vault.unlock("correct horse battery staple");
     assert.equal((await vault.status()).vaultState, "unlocked");
-
-    now += 15 * 60 * 1_000;
-    assert.equal((await vault.status()).vaultState, "locked");
   });
 
   it("rejects duplicate and out-of-scope registration requests", async () => {

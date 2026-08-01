@@ -51,7 +51,7 @@ DIYVM Local Passkey `0.3.0` 是一个 Manifest V3 纯 Chrome 插件。通行密�
 | 本地通行密钥 | 使用 Web Crypto 为每枚凭据生成独立的 ES256 / P-256 密钥 |
 | 加密凭据库 | 私钥、RP ID、账户信息和计数器使用 AES-256-GCM 加密后存入 IndexedDB |
 | 主密码保护 | PBKDF2-SHA-256（600,000 次迭代）用于包装随机 256 位 Vault Key |
-| 自动锁定 | Vault Key 只进入 `chrome.storage.session`，Chrome 关闭或空闲 15 分钟后锁定 |
+| 会话锁定 | Vault Key 只进入 `chrome.storage.session`，可手动锁定，并在 Chrome 重启或插件更新、重载时清除 |
 | 操作确认 | 每次注册或登录均显示独立确认窗口，可使用本地通行密钥、改用系统验证器或取消 |
 | 数据迁移 | 支持加密凭据库导出与原子导入，恢复时仍需原主密码 |
 | 自适应界面 | 自动跟随系统深浅色模式，采用 DIYVM 官网视觉风格 |
