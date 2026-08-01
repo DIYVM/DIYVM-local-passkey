@@ -1,48 +1,130 @@
-# DIYVM Local Passkey
+<div align="center">
+  <a href="https://www.diyvm.com">
+    <img src="./extension/src/logo.png" width="112" height="112" alt="DIYVM Local Passkey">
+  </a>
 
-`pure-extension` 分支是 DIYVM Local Passkey `0.3.0` 的 Chrome Web Store 架构版。
-插件不需要安装 `PasskeyHost.exe`，也不使用 `webAuthenticationProxy`。凭据生成、
-签名、加密和存储都在扩展内部完成。
+  <h1>DIYVM Local Passkey</h1>
 
-## 当前能力
+  <p>
+    <strong>完全运行在 Chrome 扩展内的本地通行密钥管理器</strong>
+  </p>
 
-- 支持 `webauthn.io`、`amazon.com` 及其 HTTPS 子域。
-- 使用浏览器 Web Crypto 生成独立 ES256 / P-256 密钥。
-- 支持可发现凭据、`excludeCredentials`、`allowCredentials` 和签名计数器。
-- 私钥、RP ID、账户信息和计数器整体使用 AES-256-GCM 加密后保存到 IndexedDB。
-- 随机 Vault Key 使用主密码经 PBKDF2-SHA-256 派生的密钥包装。
-- 解锁后的 Vault Key 只保存到 Chrome `storage.session`；Chrome 关闭或空闲
-  15 分钟后重新锁定。
-- 每次注册或登录都会显示独立的 DIYVM 扩展确认窗口，可选择本地通行密钥、
-  Chrome/系统验证器或取消。
-- 插件页面支持加密备份导入和导出；恢复后仍需原主密码。
-- 自动跟随系统深浅色显示 A/C 两套官网风格。
+  <p>
+    无本机服务 · 无 Native Messaging · 无云端凭据同步
+  </p>
 
-纯插件不会读取或复制 Windows Hello、Chrome 密码管理器、USB 安全密钥或其他
+  <p>
+    <a href="https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml">
+      <img src="https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml/badge.svg?branch=main" alt="Build Chrome Extension">
+    </a>
+    <img src="https://img.shields.io/badge/version-0.3.0-2458d3?style=flat-square" alt="Version 0.3.0">
+    <img src="https://img.shields.io/badge/Chrome-120%2B-1a73e8?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome 120+">
+    <img src="https://img.shields.io/badge/Manifest-V3-0b1736?style=flat-square" alt="Manifest V3">
+    <a href="./LICENSE">
+      <img src="https://img.shields.io/badge/license-Apache--2.0-2f80ed?style=flat-square" alt="Apache-2.0 License">
+    </a>
+  </p>
+
+  <p>
+    <a href="https://www.diyvm.com">官方网站</a>
+    ·
+    <a href="https://github.com/DIYVM/DIYVM-local-passkey/actions">下载构建</a>
+    ·
+    <a href="./docs/security-boundary.md">安全边界</a>
+  </p>
+</div>
+
+---
+
+DIYVM Local Passkey `0.3.0` 是一个 Manifest V3 纯 Chrome 插件。通行密钥的生成、
+签名、加密和存储均在扩展内部完成，不需要安装 `PasskeyHost.exe`，也不申请
+`nativeMessaging` 或 `webAuthenticationProxy` 权限。
+
+> [!IMPORTANT]
+> 当前版本用于测试和兼容性验证，尚未经过外部安全审计或 Chrome Web Store 审核。
+> 请只使用可恢复的测试账户，并始终保留密码、OTP 或其他安全密钥。
+
+## 核心能力
+
+| 能力 | 实现 |
+| --- | --- |
+| 本地通行密钥 | 使用 Web Crypto 为每枚凭据生成独立的 ES256 / P-256 密钥 |
+| 加密凭据库 | 私钥、RP ID、账户信息和计数器使用 AES-256-GCM 加密后存入 IndexedDB |
+| 主密码保护 | PBKDF2-SHA-256（600,000 次迭代）用于包装随机 256 位 Vault Key |
+| 自动锁定 | Vault Key 只进入 `chrome.storage.session`，Chrome 关闭或空闲 15 分钟后锁定 |
+| 操作确认 | 每次注册或登录均显示独立确认窗口，可使用本地通行密钥、改用系统验证器或取消 |
+| 数据迁移 | 支持加密凭据库导出与原子导入，恢复时仍需原主密码 |
+| 自适应界面 | 自动跟随系统深浅色模式，采用 DIYVM 官网视觉风格 |
+| 最小权限 | 仅申请 `storage` 权限，页面访问范围限制在受支持的 HTTPS 站点 |
+
+插件不会读取或复制 Windows Hello、Chrome 密码管理器、USB 安全密钥或其他
 验证器中的私钥。
 
-## 安装测试包
+## 工作原理
 
-GitHub Actions 会在 `main`、`pure-extension` 的推送和拉取请求上执行：
+```mermaid
+flowchart LR
+    A["网站发起 WebAuthn 请求"] --> B["Chrome 页面桥接"]
+    B --> C["DIYVM 确认窗口"]
+    C --> D["扩展内软件验证器"]
+    D --> E["Web Crypto<br>生成密钥 / 签名"]
+    D <--> F["AES-256-GCM 加密凭据库<br>IndexedDB"]
+    G["主密码"] --> H["PBKDF2-SHA-256<br>包装 Vault Key"]
+    H --> F
+```
 
-1. TypeScript 类型检查。
-2. 自动测试。
-3. 扩展构建。
-4. 生成根目录包含 `manifest.json` 的 ZIP 和 SHA-256 文件。
+页面桥接只处理白名单站点的顶层、非条件式 WebAuthn 请求。选择“改用 Chrome /
+系统验证器”时，请求会返回浏览器原生实现。
 
-下载 Actions 产物后：
+## 兼容范围
 
-1. 解压 `DIYVM-Local-Passkey-Chrome-0.3.0.zip`。
-2. 打开 `chrome://extensions`。
-3. 开启“开发者模式”。
-4. 选择“加载已解压的扩展程序”，加载解压目录。
-5. 点击插件图标，创建至少 12 个 UTF-8 字节的主密码。
-6. 在 `https://webauthn.io` 注册并登录测试。
+| 项目 | 当前状态 |
+| --- | --- |
+| Chrome | `120` 及以上 |
+| 扩展规范 | Manifest V3 |
+| `webauthn.io` | 自动测试覆盖注册、登录和签名验证 |
+| `amazon.com` 及其 HTTPS 子域 | 已加入白名单，真实账户流程需人工验证 |
+| 条件式 WebAuthn | 不拦截，继续使用 Chrome 原生实现 |
+| 算法 | 当前仅支持 ES256 |
 
-只使用可恢复的测试账户，并保留密码、OTP 或其他安全密钥。Amazon 真实账户流程
-需要单独人工验证，本仓库自动测试不把 Amazon 兼容性标记为已通过。
+纯插件不依赖 Windows 可执行文件，但当前仍未完成跨操作系统和 Windows 实机矩阵
+验证。
 
-## 加密备份
+## 安装测试版
+
+### 从 GitHub Actions 下载
+
+1. 打开项目的 [GitHub Actions](https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml)。
+2. 选择 `main` 分支最近一次成功的 **Build Chrome Extension**。
+3. 下载 `DIYVM-Local-Passkey-Chrome-0.3.0` 构建产物。
+4. 解压 Actions 产物，再解压其中的 `DIYVM-Local-Passkey-Chrome-0.3.0.zip`。
+5. 在 Chrome 打开 `chrome://extensions` 并开启“开发者模式”。
+6. 点击“加载已解压的扩展程序”，选择包含 `manifest.json` 的目录。
+
+### 从源码构建
+
+需要 Node.js `20` 或更高版本：
+
+```bash
+git clone https://github.com/DIYVM/DIYVM-local-passkey.git
+cd DIYVM-local-passkey
+npm ci
+npm run test:pure
+```
+
+构建结果位于 `extension/dist`。在 `chrome://extensions` 中加载该目录即可。
+
+## 快速开始
+
+1. 点击 Chrome 工具栏中的 DIYVM Local Passkey 图标。
+2. 创建至少 `12` 个 UTF-8 字节的主密码。
+3. 打开 [webauthn.io](https://webauthn.io)，输入测试用户名并注册通行密钥。
+4. 在 DIYVM 确认窗口中选择“使用本地通行密钥”。
+5. 使用刚创建的凭据完成登录验证。
+
+忘记主密码后无法恢复本地凭据。请在正式迁移或重装系统前先导出加密备份。
+
+## 备份与恢复
 
 插件页面中的“导出备份”会生成：
 
@@ -50,54 +132,73 @@ GitHub Actions 会在 `main`、`pure-extension` 的推送和拉取请求上执�
 DIYVM-LocalPasskey-backup-<时间>.diyvmpasskey.json
 ```
 
-备份包含 IndexedDB 中的加密信封、KDF 参数和包装后的 Vault Key，不包含明文
-RP ID、账户名或私钥。导入会先验证文件大小、版本、结构和 SHA-256，再用一个
-IndexedDB 事务完整替换凭据库；校验失败时不会覆盖现有数据。
+备份包含 KDF 参数、包装后的 Vault Key 和 IndexedDB 加密记录，不包含明文 RP ID、
+账户名或私钥。导入时会先验证文件大小、版本、结构和 SHA-256，再通过单个
+IndexedDB 事务完整替换当前凭据库；验证失败不会覆盖现有数据。
 
-备份文件可以被离线猜测主密码，因此必须使用高强度主密码并妥善保管。
+> [!WARNING]
+> 备份文件可以被离线猜测主密码。请使用高强度主密码，将备份保存在可信的加密
+> 存储中，并避免通过公开渠道传输。
 
-## 开发和验证
+## 开发与验证
 
-```text
-npm install
+```bash
+# TypeScript 类型检查
 npm run check
+
+# 运行 16 项本地自动测试
 npm test
+
+# 构建 Chrome 扩展
 npm run build
+
+# 一次完成检查、测试和构建
+npm run test:pure
 ```
 
-需要复测 webauthn.io 当前服务端时，可单独运行：
+如需复测 webauthn.io 当前服务端，可运行：
 
-```text
+```bash
 npm run test:webauthn-io
 ```
 
-该命令会用一次性用户名完成真实注册和登录验签，不会访问 Amazon，也不会在
-GitHub Actions 中自动运行。
+该命令使用一次性用户名完成真实注册和登录验签，不访问 Amazon，也不在 GitHub
+Actions 中自动运行。
 
-构建结果位于：
+自动测试覆盖 IndexedDB 加密读写与原子恢复、主密码锁定与解锁、ES256 注册和
+登录、attestation 与 COSE 公钥、签名计数器、加密备份恢复、RP ID 边界、消息
+校验以及 Manifest 权限约束。
+
+## 项目结构
 
 ```text
-extension/dist
+.
+├── .github/workflows/       # 自动检查、测试和安装包构建
+├── docs/                    # 开发、协议与安全说明
+├── extension/
+│   ├── icons/               # Chrome 扩展图标
+│   ├── scripts/             # 构建和在线验证脚本
+│   ├── src/                 # 扩展、软件验证器与加密凭据库源码
+│   └── test/                # 自动测试
+├── LICENSE
+└── package.json
 ```
 
-当前自动测试覆盖：
-
-- IndexedDB 加密记录读写和原子恢复。
-- 主密码解锁、错误密码和 15 分钟空闲锁定。
-- webauthn.io ES256 注册和登录。
-- attestation、COSE 公钥、RP ID 哈希、UP/UV 标志。
-- 登录签名的公钥验证和签名计数器递增。
-- 真实加密凭据的导出、恢复和继续登录。
-- 重复凭据、越界 RP ID、备份篡改和错误格式拒绝。
-- 页面桥接的原生对象恢复、回退、错误映射和取消。
-- Manifest 只申请 `storage` 权限，不含 `nativeMessaging` 或
-  `webAuthenticationProxy`。
-
-更多信息：
-
-- [开发说明](docs/development.md)
-- [页面桥接协议](docs/protocol.md)
-- [安全边界](docs/security-boundary.md)
-
-仓库只保留纯 Chrome 插件实现，不包含本机宿主、Native Messaging、Windows
+仓库仅保留纯 Chrome 插件实现，不包含本机宿主、Native Messaging、Windows
 安装器或其他历史版本源码。
+
+## 文档
+
+- [开发说明](./docs/development.md)
+- [页面桥接协议](./docs/protocol.md)
+- [安全边界与已知限制](./docs/security-boundary.md)
+
+## 许可证
+
+本项目基于 [Apache License 2.0](./LICENSE) 开源。
+
+<div align="center">
+  <sub>
+    Built by <a href="https://www.diyvm.com">DIYVM</a>
+  </sub>
+</div>
