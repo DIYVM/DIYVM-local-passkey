@@ -29,7 +29,7 @@ import {
   sha256
 } from "../src/binary";
 
-describe("pure extension WebAuthn for webauthn.io", () => {
+describe("pure extension WebAuthn", () => {
   let databaseName: string;
   let store: IndexedDbVaultStore;
   let session: MemoryVaultSessionStorage;
@@ -55,7 +55,7 @@ describe("pure extension WebAuthn for webauthn.io", () => {
   it("registers and authenticates a discoverable ES256 credential", async () => {
     const creation = creationOptions();
     const created = await authenticator.makeCredential(
-      "https://webauthn.io",
+      "https://amazon.com",
       creation
     );
 
@@ -71,7 +71,7 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     assert.deepEqual(clientData, {
       type: "webauthn.create",
       challenge: creation.challenge,
-      origin: "https://webauthn.io",
+      origin: "https://amazon.com",
       crossOrigin: false
     });
 
@@ -80,7 +80,7 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     );
     assert.deepEqual(
       registrationAuthData.slice(0, 32),
-      new Uint8Array(await sha256(new TextEncoder().encode("webauthn.io")))
+      new Uint8Array(await sha256(new TextEncoder().encode("amazon.com")))
     );
     assert.equal(registrationAuthData[32], 0x45);
     assert.equal(new DataView(registrationAuthData.buffer).getUint32(33), 0);
@@ -107,11 +107,11 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     now += 1_000;
     const request: SerializedRequestOptions = {
       challenge: encodeBase64Url(bytes(32, 90)),
-      rpId: "webauthn.io",
+      rpId: "amazon.com",
       userVerification: "required"
     };
     const assertion = await authenticator.getAssertion(
-      "https://webauthn.io",
+      "https://amazon.com",
       request
     );
 
@@ -123,7 +123,7 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     assert.deepEqual(assertionClientData, {
       type: "webauthn.get",
       challenge: request.challenge,
-      origin: "https://webauthn.io",
+      origin: "https://amazon.com",
       crossOrigin: false
     });
     const assertionAuthData = new Uint8Array(
@@ -157,7 +157,7 @@ describe("pure extension WebAuthn for webauthn.io", () => {
 
     now += 1_000;
     const second = await authenticator.getAssertion(
-      "https://webauthn.io",
+      "https://amazon.com",
       {
         ...request,
         challenge: encodeBase64Url(bytes(32, 120)),
@@ -177,13 +177,13 @@ describe("pure extension WebAuthn for webauthn.io", () => {
 
     const summaries = await vault.listCredentials();
     assert.equal(summaries.length, 1);
-    assert.equal(summaries[0]?.rpId, "webauthn.io");
+    assert.equal(summaries[0]?.rpId, "amazon.com");
     assert.equal(summaries[0]?.signCount, 2);
   });
 
   it("encrypts records, stays unlocked, and rejects a wrong password", async () => {
     await authenticator.makeCredential(
-      "https://webauthn.io",
+      "https://amazon.com",
       creationOptions()
     );
     const records = await store.listCredentials();
@@ -191,7 +191,7 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     const ciphertextText = new TextDecoder().decode(
       records[0]?.encryptedPayload.ciphertext
     );
-    assert.doesNotMatch(ciphertextText, /webauthn\.io|tester@example\.com/);
+    assert.doesNotMatch(ciphertextText, /amazon\.com|tester@example\.com/);
 
     now += 24 * 60 * 60 * 1_000;
     assert.equal((await vault.status()).vaultState, "unlocked");
@@ -208,15 +208,35 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     assert.equal((await vault.status()).vaultState, "unlocked");
   });
 
-  it("rejects duplicate and out-of-scope registration requests", async () => {
+  it("supports Amazon parent-domain RP IDs and non-default HTTPS ports", async () => {
+    const creation = {
+      ...creationOptions(),
+      rp: {
+        id: "aws.amazon.com",
+        name: "Amazon Web Services"
+      }
+    };
+    const created = await authenticator.makeCredential(
+      "https://signin.aws.amazon.com:8443",
+      creation
+    );
+    assert.deepEqual(decodeJson(created.response.clientDataJSON), {
+      type: "webauthn.create",
+      challenge: creation.challenge,
+      origin: "https://signin.aws.amazon.com:8443",
+      crossOrigin: false
+    });
+  });
+
+  it("rejects duplicates, cross-site RP IDs, and non-Amazon origins", async () => {
     const creation = creationOptions();
     const created = await authenticator.makeCredential(
-      "https://webauthn.io",
+      "https://amazon.com",
       creation
     );
     await assert.rejects(
       () =>
-        authenticator.makeCredential("https://webauthn.io", {
+        authenticator.makeCredential("https://amazon.com", {
           ...creation,
           challenge: encodeBase64Url(bytes(32, 200)),
           excludeCredentials: [
@@ -232,9 +252,19 @@ describe("pure extension WebAuthn for webauthn.io", () => {
     );
     await assert.rejects(
       () =>
-        authenticator.makeCredential("https://webauthn.io", {
+        authenticator.makeCredential("https://amazon.com", {
           ...creation,
           rp: { id: "evil.example", name: "Lookalike" }
+        }),
+      (error) =>
+        error instanceof PureExtensionError &&
+        error.code === "SECURITY_ERROR"
+    );
+    await assert.rejects(
+      () =>
+        authenticator.makeCredential("https://example.com", {
+          ...creation,
+          rp: { id: "example.com", name: "Non-Amazon site" }
         }),
       (error) =>
         error instanceof PureExtensionError &&
@@ -244,13 +274,13 @@ describe("pure extension WebAuthn for webauthn.io", () => {
 
   it("exports and restores a real encrypted passkey", async () => {
     const created = await authenticator.makeCredential(
-      "https://webauthn.io",
+      "https://amazon.com",
       creationOptions()
     );
     const backup = await exportVaultBackup(store);
     assert.doesNotMatch(
       backup,
-      /webauthn\.io|tester@example\.com|privateKeyPkcs8/
+      /amazon\.com|tester@example\.com|privateKeyPkcs8/
     );
 
     const targetName = `diyvm-restored-${crypto.randomUUID()}`;
@@ -271,10 +301,10 @@ describe("pure extension WebAuthn for webauthn.io", () => {
         () => now
       );
       const assertion = await targetAuthenticator.getAssertion(
-        "https://webauthn.io",
+        "https://amazon.com",
         {
           challenge: encodeBase64Url(bytes(32, 220)),
-          rpId: "webauthn.io",
+          rpId: "amazon.com",
           allowCredentials: [
             {
               type: "public-key",
@@ -295,8 +325,8 @@ describe("pure extension WebAuthn for webauthn.io", () => {
 function creationOptions(): SerializedCreationOptions {
   return {
     rp: {
-      id: "webauthn.io",
-      name: "webauthn.io"
+      id: "amazon.com",
+      name: "Amazon"
     },
     user: {
       id: encodeBase64Url(bytes(16, 1)),
