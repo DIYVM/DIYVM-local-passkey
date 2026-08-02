@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 const manifestUrl = new URL("../manifest.json", import.meta.url);
 
 interface ExtensionManifest {
+  key?: string;
   name?: string;
   version?: string;
   permissions?: string[];
@@ -26,14 +27,15 @@ describe("pure extension manifest", () => {
   it("uses the production identity and only the storage permission", async () => {
     const manifest = await readManifest();
     assert.equal(manifest.name, "DIYVM Local Passkey");
-    assert.equal(manifest.version, "0.3.0");
+    assert.equal(manifest.version, "0.4.1");
+    assert.equal(manifest.key, undefined);
     assert.deepEqual(manifest.permissions, ["storage"]);
   });
 
-  it("limits page access to the supported HTTPS sites", async () => {
+  it("limits WebAuthn page access to amazon.com", async () => {
     const manifest = await readManifest();
     assert.deepEqual(manifest.host_permissions, [
-      "https://webauthn.io/*",
+      "https://amazon.com/*",
       "https://*.amazon.com/*"
     ]);
   });
@@ -43,7 +45,7 @@ describe("pure extension manifest", () => {
     assert.deepEqual(manifest.content_scripts, [
       {
         matches: [
-          "https://webauthn.io/*",
+          "https://amazon.com/*",
           "https://*.amazon.com/*"
         ],
         js: ["page-bridge.js"],
@@ -53,7 +55,7 @@ describe("pure extension manifest", () => {
       },
       {
         matches: [
-          "https://webauthn.io/*",
+          "https://amazon.com/*",
           "https://*.amazon.com/*"
         ],
         js: ["content-script.js"],

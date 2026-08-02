@@ -1,14 +1,15 @@
 # 纯插件安全边界
 
-当前 `0.3.0` 使用 Chrome Web Store 架构，但仍未经过外部安全审计或商店审核。
+当前 `0.4.1` 使用 Chrome Web Store 架构，但仍未经过外部安全审计或商店审核。
 
 ## 来源与消息信任链
 
-1. Manifest 只把页面代码注入 `webauthn.io`、`amazon.com` 及 Amazon HTTPS 子域。
+1. Manifest 只把页面代码注入 `amazon.com` 及其 HTTPS 子域。
 2. Page Script 只拦截顶层页面的非条件式 WebAuthn 请求。
 3. Content Script 校验消息来源、Origin、通道、请求 ID、重复请求和 512 KiB 上限。
 4. Background 使用 Chrome 提供的 `sender.url` 推导 Origin，不信任网页字段。
-5. 软件验证器再次校验 HTTPS Origin、产品白名单和 RP ID 范围。
+5. 软件验证器再次校验 Amazon HTTPS Origin 和 RP ID 范围；非 Amazon 来源和跨站
+   RP ID 会被拒绝。
 6. 确认页面属于扩展自身，未暴露为网页可访问资源。
 
 ## 凭据和密钥
@@ -53,8 +54,8 @@
 - 页面桥接恢复的是带浏览器原型的 JavaScript `PublicKeyCredential` 对象，不是
   Chrome 内部验证器直接创建的对象，因此需要持续验证目标网站兼容性。
 - 条件式 WebAuthn 不被拦截。
-- 仅支持 ES256 和当前白名单站点。
-- Amazon 真实账户已人工验证通行密钥创建和登录，但尚未纳入自动化测试。
+- 仅支持 ES256 和 `amazon.com` 及其 HTTPS 子域。
+- Amazon 真实账户已人工验证通行密钥创建和登录。
 - 尚未完成 Chrome Web Store 审核、外部安全审计和 Windows 实机矩阵。
 
 测试时必须使用可恢复账户，并保留密码、OTP 或其他安全密钥。

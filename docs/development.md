@@ -30,13 +30,14 @@ npm run build
 测试会实际执行以下流程：
 
 1. 创建 PBKDF2/AES-GCM 加密凭据库。
-2. 为 webauthn.io 生成可发现的 ES256 凭据。
+2. 为 `amazon.com` 生成可发现的 ES256 凭据。
 3. 解析并检查 attestation、COSE 公钥、RP ID 哈希和标志位。
 4. 生成登录 assertion，并用注册公钥验证 DER 格式签名。
 5. 验证签名计数器从 0 递增到 1、2。
 6. 手动锁定、错误密码拒绝、正确密码恢复和长会话保持解锁。
 7. 导出真实加密凭据，恢复到新 IndexedDB 后继续登录。
-8. 拒绝重复凭据、越界 RP ID 和被篡改的备份。
+8. 接受 Amazon 合法父域 RP ID，并拒绝重复凭据、跨站 RP ID、非 Amazon 来源和
+   被篡改的备份。
 
 ## 手动加载
 
@@ -48,16 +49,11 @@ npm run build
 
 不需要安装或注册 Native Messaging Host。
 
-## 测试站点
+## 网站范围
 
-允许的顶层 HTTPS 站点：
+扩展仅在 `https://amazon.com/*` 和 `https://*.amazon.com/*` 顶层页面运行。RP ID
+必须等于当前 Amazon 主机名，或是当前主机名下的 Amazon 父域。非 Amazon 网站、
+跨站 RP ID 和条件式 WebAuthn 请求继续使用 Chrome 原生实现。
 
-- `https://webauthn.io`
-- `https://amazon.com`
-- `https://*.amazon.com`
-
-不在白名单内的网站和条件式 WebAuthn 请求继续使用 Chrome 原生实现。
-
-webauthn.io 是当前自动化验证目标。Amazon 使用同一套页面桥接和序列化
-`PublicKeyCredential` 返回路径，真实账户已人工验证通行密钥创建和登录，但尚未
-纳入自动化测试。
+Amazon 真实账户已人工验证通行密钥创建和登录。自动测试覆盖 Amazon 来源策略、
+RP ID 边界、注册、签名和凭据恢复。

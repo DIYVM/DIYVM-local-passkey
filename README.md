@@ -17,7 +17,7 @@
     <a href="https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml">
       <img src="https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml/badge.svg?branch=main" alt="Build Chrome Extension">
     </a>
-    <img src="https://img.shields.io/badge/version-0.3.0-2458d3?style=flat-square" alt="Version 0.3.0">
+    <img src="https://img.shields.io/badge/version-0.4.1-2458d3?style=flat-square" alt="Version 0.4.1">
     <img src="https://img.shields.io/badge/Chrome-120%2B-1a73e8?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome 120+">
     <img src="https://img.shields.io/badge/Manifest-V3-0b1736?style=flat-square" alt="Manifest V3">
     <a href="./LICENSE">
@@ -37,18 +37,23 @@
     <a href="https://github.com/DIYVM/DIYVM-local-passkey/releases/latest">下载最新版</a>
     ·
     <a href="./docs/security-boundary.md">安全边界</a>
+    ·
+    <a href="./docs/privacy-policy.md">隐私政策</a>
   </p>
 </div>
 
 ---
 
-DIYVM Local Passkey `0.3.0` 是一个 Manifest V3 纯 Chrome 插件。通行密钥的生成、
+DIYVM Local Passkey `0.4.1` 是一个面向 `amazon.com` 及其 HTTPS 子域的 Manifest V3
+纯 Chrome 插件。通行密钥的生成、
 签名、加密和存储均在扩展内部完成，不需要安装 `PasskeyHost.exe`，也不申请
 `nativeMessaging` 或 `webAuthenticationProxy` 权限。
 
 > [!IMPORTANT]
 > 当前版本用于测试和兼容性验证，尚未经过外部安全审计或 Chrome Web Store 审核。
 > 请只使用可恢复的测试账户，并始终保留密码、OTP 或其他安全密钥。
+
+本项目为独立开发工具，与 Amazon.com, Inc. 及其关联公司不存在隶属、授权或背书关系。
 
 ## 核心能力
 
@@ -61,7 +66,7 @@ DIYVM Local Passkey `0.3.0` 是一个 Manifest V3 纯 Chrome 插件。通行密�
 | 操作确认 | 每次注册或登录均显示独立确认窗口，可使用本地通行密钥、改用系统验证器或取消 |
 | 数据迁移 | 支持加密凭据库导出与原子导入，恢复时仍需原主密码 |
 | 自适应界面 | 自动跟随系统深浅色模式，采用 DIYVM 官网视觉风格 |
-| 最小权限 | 仅申请 `storage` 权限，页面访问范围限制在受支持的 HTTPS 站点 |
+| 权限范围 | 功能权限仅申请 `storage`；页面访问仅限 `amazon.com` 及其 HTTPS 子域 |
 
 插件不会读取或复制 Windows Hello、Chrome 密码管理器、USB 安全密钥或其他
 验证器中的私钥。
@@ -79,7 +84,8 @@ flowchart LR
     H --> F
 ```
 
-页面桥接只处理白名单站点的顶层、非条件式 WebAuthn 请求。选择“改用 Chrome /
+页面桥接只处理 `amazon.com` 及其 HTTPS 子域的顶层、非条件式 WebAuthn 请求。
+选择“改用 Chrome /
 系统验证器”时，请求会返回浏览器原生实现。
 
 ## 兼容范围
@@ -88,8 +94,8 @@ flowchart LR
 | --- | --- |
 | Chrome | `120` 及以上 |
 | 扩展规范 | Manifest V3 |
-| `webauthn.io` | 自动测试覆盖注册、登录和签名验证 |
-| `amazon.com` 及其 HTTPS 子域 | 真实账户已人工验证通行密钥创建和登录；尚未纳入自动化测试 |
+| `amazon.com` 及其 HTTPS 子域 | 支持通行密钥创建和登录；真实账户已人工验证 |
+| 其他网站 | 不注入页面桥接，继续使用 Chrome 原生 WebAuthn |
 | 条件式 WebAuthn | 不拦截，继续使用 Chrome 原生实现 |
 | 算法 | 当前仅支持 ES256 |
 
@@ -101,7 +107,7 @@ flowchart LR
 ### 从 GitHub Releases 下载
 
 1. 打开项目的 [最新 Release](https://github.com/DIYVM/DIYVM-local-passkey/releases/latest)。
-2. 下载 `DIYVM-Local-Passkey-Chrome-0.3.0.zip`。
+2. 下载 `DIYVM-Local-Passkey-Chrome-0.4.1.zip`。
 3. 可使用同一 Release 中的 `.sha256` 文件校验下载完整性。
 4. 解压扩展 ZIP。
 5. 在 Chrome 打开 `chrome://extensions` 并开启“开发者模式”。
@@ -124,7 +130,7 @@ npm run test:pure
 
 1. 点击 Chrome 工具栏中的 DIYVM Local Passkey 图标。
 2. 创建至少 `12` 个 UTF-8 字节的主密码。
-3. 打开 [webauthn.io](https://webauthn.io)，输入测试用户名并注册通行密钥。
+3. 打开 [Amazon](https://www.amazon.com/)，进入支持通行密钥的注册或登录流程。
 4. 在 DIYVM 确认窗口中选择“使用本地通行密钥”。
 5. 使用刚创建的凭据完成登录验证。
 
@@ -152,7 +158,7 @@ IndexedDB 事务完整替换当前凭据库；验证失败不会覆盖现有数�
 # TypeScript 类型检查
 npm run check
 
-# 运行 16 项本地自动测试
+# 运行 17 项本地自动测试
 npm test
 
 # 构建 Chrome 扩展
@@ -161,15 +167,6 @@ npm run build
 # 一次完成检查、测试和构建
 npm run test:pure
 ```
-
-如需复测 webauthn.io 当前服务端，可运行：
-
-```bash
-npm run test:webauthn-io
-```
-
-该命令使用一次性用户名完成真实注册和登录验签，不访问 Amazon，也不在 GitHub
-Actions 中自动运行。
 
 自动测试覆盖 IndexedDB 加密读写与原子恢复、主密码锁定与解锁、ES256 注册和
 登录、attestation 与 COSE 公钥、签名计数器、加密备份恢复、RP ID 边界、消息
@@ -182,8 +179,8 @@ Actions 中自动运行。
 Git 标签发布：
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.4.1
+git push origin v0.4.1
 ```
 
 标签构建通过后，GitHub Actions 会自动创建对应 Release，并上传扩展 ZIP 和

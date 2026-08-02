@@ -17,7 +17,7 @@
     <a href="https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml">
       <img src="https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml/badge.svg?branch=main" alt="Build Chrome Extension">
     </a>
-    <img src="https://img.shields.io/badge/version-0.3.0-2458d3?style=flat-square" alt="Version 0.3.0">
+    <img src="https://img.shields.io/badge/version-0.4.1-2458d3?style=flat-square" alt="Version 0.4.1">
     <img src="https://img.shields.io/badge/Chrome-120%2B-1a73e8?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome 120+">
     <img src="https://img.shields.io/badge/Manifest-V3-0b1736?style=flat-square" alt="Manifest V3">
     <a href="./LICENSE">
@@ -37,12 +37,15 @@
     <a href="https://github.com/DIYVM/DIYVM-local-passkey/releases/latest">Download Latest Release</a>
     ·
     <a href="./docs/security-boundary.md">Security Boundary</a>
+    ·
+    <a href="./docs/privacy-policy.md">Privacy Policy</a>
   </p>
 </div>
 
 ---
 
-DIYVM Local Passkey `0.3.0` is a pure Manifest V3 Chrome extension. Passkey
+DIYVM Local Passkey `0.4.1` is a pure Manifest V3 Chrome extension for
+`amazon.com` and its HTTPS subdomains. Passkey
 generation, signing, encryption, and storage all happen inside the extension.
 It does not require `PasskeyHost.exe` and does not request the
 `nativeMessaging` or `webAuthenticationProxy` permissions.
@@ -52,6 +55,9 @@ It does not require `PasskeyHost.exe` and does not request the
 > not yet undergone an external security audit or Chrome Web Store review.
 > Use only recoverable test accounts and always retain a password, OTP, or
 > another security key.
+
+This independent project is not affiliated with, authorized by, or endorsed
+by Amazon.com, Inc. or its affiliates.
 
 ## Core Capabilities
 
@@ -64,7 +70,7 @@ It does not require `PasskeyHost.exe` and does not request the
 | Operation confirmation | Shows a separate confirmation window for every registration or sign-in, with options to use the local passkey, switch to the system authenticator, or cancel |
 | Data migration | Supports encrypted vault export and atomic import; restoring a vault still requires its original master password |
 | Adaptive interface | Follows the system light/dark preference and uses the DIYVM website visual style |
-| Minimal permissions | Requests only `storage` and limits page access to supported HTTPS sites |
+| Permission scope | Requests only `storage` as a functional permission; page access is limited to `amazon.com` and its HTTPS subdomains |
 
 The extension does not read or copy private keys from Windows Hello, Chrome
 Password Manager, USB security keys, or any other authenticator.
@@ -82,8 +88,9 @@ flowchart LR
     H --> F
 ```
 
-The page bridge handles only top-level, non-conditional WebAuthn requests on
-allowlisted sites. When the user selects **Use Chrome / system instead**, the
+The page bridge handles top-level, non-conditional WebAuthn requests only on
+`amazon.com` and its HTTPS subdomains. When the user selects **Use Chrome /
+system instead**, the
 request falls back to the browser's native implementation.
 
 ## Compatibility
@@ -92,8 +99,8 @@ request falls back to the browser's native implementation.
 | --- | --- |
 | Chrome | Version `120` or later |
 | Extension platform | Manifest V3 |
-| `webauthn.io` | Automated tests cover registration, sign-in, and signature verification |
-| `amazon.com` and its HTTPS subdomains | Passkey creation and sign-in have been manually verified with a real account; not yet covered by automated tests |
+| `amazon.com` and its HTTPS subdomains | Supports passkey creation and sign-in; manually verified with a real account |
+| Other sites | The bridge is not injected; Chrome's native WebAuthn remains active |
 | Conditional WebAuthn | Not intercepted; continues through Chrome's native implementation |
 | Algorithm | ES256 only |
 
@@ -105,7 +112,7 @@ and physical Windows test matrices have not yet been completed.
 ### Download from GitHub Releases
 
 1. Open the project's [latest Release](https://github.com/DIYVM/DIYVM-local-passkey/releases/latest).
-2. Download `DIYVM-Local-Passkey-Chrome-0.3.0.zip`.
+2. Download `DIYVM-Local-Passkey-Chrome-0.4.1.zip`.
 3. Optionally verify the download with the `.sha256` file from the same Release.
 4. Extract the extension ZIP.
 5. Open `chrome://extensions` and enable **Developer mode**.
@@ -129,7 +136,7 @@ The build output is written to `extension/dist`. Load that directory from
 
 1. Select the DIYVM Local Passkey icon in the Chrome toolbar.
 2. Create a master password containing at least `12` UTF-8 bytes.
-3. Open [webauthn.io](https://webauthn.io), enter a test username, and register a passkey.
+3. Open [Amazon](https://www.amazon.com/) and enter a passkey registration or sign-in flow.
 4. Select **Use local passkey** in the DIYVM confirmation window.
 5. Sign in with the credential you just created.
 
@@ -163,7 +170,7 @@ unchanged.
 # Type-check the TypeScript source
 npm run check
 
-# Run all 16 local automated tests
+# Run all 17 local automated tests
 npm test
 
 # Build the Chrome extension
@@ -172,16 +179,6 @@ npm run build
 # Type-check, test, and build in one command
 npm run test:pure
 ```
-
-To retest the live webauthn.io service, run:
-
-```bash
-npm run test:webauthn-io
-```
-
-This command uses a one-time username to perform a real registration and
-sign-in verification. It does not access Amazon and is not executed
-automatically in GitHub Actions.
 
 Automated tests cover encrypted IndexedDB reads and writes, atomic restore,
 master password locking and unlocking, ES256 registration and sign-in,
@@ -195,8 +192,8 @@ then stores an Actions Artifact for 30 days. Formal versions are published from
 Git tags that match the version in `extension/package.json`:
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.4.1
+git push origin v0.4.1
 ```
 
 After the tagged build passes, GitHub Actions automatically creates the

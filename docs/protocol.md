@@ -9,7 +9,7 @@
 - 页面到扩展的 public-key 负载最大 512 KiB。
 - `requestId` 为 16–128 个 ASCII 字母、数字、`_` 或 `-`。
 - 二进制统一使用无填充 Base64URL。
-- 只接受顶层 HTTPS 页面。
+- 只接受 `amazon.com` 及其 HTTPS 子域的顶层页面。
 - Content Script 校验 `event.source`、`event.origin`、消息类型、请求 ID、重复请求
   和负载大小。
 - Background 只信任 Chrome 提供的 `sender.url` 和 `sender.tab`，不使用网页传入
@@ -25,7 +25,8 @@ Page Script 拦截非条件式 `navigator.credentials.create()`，序列化：
 - 排除凭据。
 - 验证器选择和扩展参数。
 
-后台确认凭据库已解锁、RP ID 在产品白名单内且 ES256 可用，再打开独立确认窗口。
+后台确认凭据库已解锁、来源属于 Amazon、RP ID 与当前域名匹配且 ES256 可用，再
+打开独立确认窗口。
 用户批准后，软件验证器返回可恢复为 `PublicKeyCredential` 的 attestation 数据。
 
 ## 登录请求
@@ -54,10 +55,9 @@ Page Script 拦截非条件式 `navigator.credentials.get()`，序列化 challen
 
 ## 商店版兼容路径
 
-商店版不申请 `webAuthenticationProxy`。webauthn.io 和 Amazon 都通过同一页面桥接
+商店版不申请 `webAuthenticationProxy`。`amazon.com` 及其 HTTPS 子域通过页面桥接
 返回恢复后的 `PublicKeyCredential` 对象；对象保留浏览器原型，并实现
 `toJSON()`、`getClientExtensionResults()` 以及注册响应的公钥和传输方式方法。
 
-webauthn.io 属于自动化验证范围。Amazon 真实账户已人工验证通行密钥创建和登录，
-但尚未纳入自动化测试；不支持的参数、条件式请求或用户选择系统验证器时，会调用
-拦截前保存的 Chrome 原生方法。
+Amazon 真实账户已人工验证通行密钥创建和登录；不支持的参数、非 Amazon 网站、
+条件式请求或用户选择系统验证器时，会调用 Chrome 原生方法。

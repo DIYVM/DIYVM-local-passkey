@@ -21,6 +21,7 @@ import {
   sha256
 } from "./binary";
 import { encodeCbor, type CborValue } from "./cbor";
+import { isAllowedAmazonHostname } from "./origin-policy";
 
 const ES256_ALGORITHM = -7;
 const CREATE_FLAGS = 0x01 | 0x04 | 0x40;
@@ -358,7 +359,6 @@ function validateOriginAndRpId(
   if (
     origin.protocol !== "https:" ||
     origin.origin !== originValue ||
-    origin.port !== "" ||
     origin.username !== "" ||
     origin.password !== ""
   ) {
@@ -366,19 +366,20 @@ function validateOriginAndRpId(
   }
   const hostname = origin.hostname.toLowerCase();
   const rpId = (requestedRpId ?? hostname).toLowerCase();
-  const validProductScope =
-    (hostname === "webauthn.io" && rpId === "webauthn.io") ||
-    ((hostname === "amazon.com" || hostname.endsWith(".amazon.com")) &&
-      (rpId === "amazon.com" || rpId === hostname));
+  const exactHost = hostname === rpId;
+  const parentDomain =
+    hostname.endsWith(`.${rpId}`) &&
+    (rpId === "amazon.com" || rpId.endsWith(".amazon.com"));
   if (
-    !validProductScope ||
+    !isAllowedAmazonHostname(hostname) ||
+    (!exactHost && !parentDomain) ||
     rpId.length > 253 ||
     rpId.startsWith(".") ||
     rpId.endsWith(".")
   ) {
     throw extensionError(
       "SECURITY_ERROR",
-      "网站 RP ID 超出本插件允许范围"
+      "网站不在 Amazon 允许范围内，或 RP ID 与当前域名不匹配"
     );
   }
   return { origin: origin.origin, rpId };
