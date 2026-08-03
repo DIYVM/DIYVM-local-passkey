@@ -17,11 +17,20 @@ describe("allowedPageOrigin", () => {
       allowedPageOrigin("https://sellercentral.amazon.com/home"),
       "https://sellercentral.amazon.com"
     );
+    assert.equal(
+      allowedPageOrigin("https://www.amazon.co.jp/ap/signin"),
+      "https://www.amazon.co.jp"
+    );
+    assert.equal(
+      allowedPageOrigin("https://sellercentral.amazon.com.au/home"),
+      "https://sellercentral.amazon.com.au"
+    );
   });
 
   it("rejects non-Amazon, lookalike, credentialed, and insecure URLs", () => {
     assert.equal(allowedPageOrigin("http://amazon.com/"), undefined);
     assert.equal(allowedPageOrigin("https://amazon.com.evil.example/"), undefined);
+    assert.equal(allowedPageOrigin("https://amazon.co.jp.evil.example/"), undefined);
     assert.equal(allowedPageOrigin("https://example.com/"), undefined);
     assert.equal(
       allowedPageOrigin("https://user:password@amazon.com/"),

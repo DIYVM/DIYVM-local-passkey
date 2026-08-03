@@ -1,6 +1,7 @@
+import { amazonMarketplaceForHostname } from "./amazon-sites";
+
 export function isAllowedAmazonHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-  return normalized === "amazon.com" || normalized.endsWith(".amazon.com");
+  return amazonMarketplaceForHostname(hostname) !== undefined;
 }
 
 export function allowedPageOrigin(urlValue: string): string | undefined {

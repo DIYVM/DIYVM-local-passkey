@@ -3,133 +3,237 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DIYVM Local Passkey</title>
+    <title>DIYVM Local Vault</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main>
-      <section class="hero">
-        <header class="brand-header">
-          <span class="brand-logo" aria-hidden="true">
-            <img src="logo.png" alt="">
-          </span>
-          <div class="brand-copy">
-            <h1>DIYVM Local Passkey</h1>
-            <a
-              class="brand-site"
-              href="https://www.diyvm.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >www.diyvm.com</a>
-          </div>
-          <span id="theme-mode" class="theme-mode">AUTO / A</span>
-        </header>
-
-        <section class="connection" aria-live="polite">
-          <div id="status-dot" class="status-dot disconnected"></div>
+      <header class="hero">
+        <div class="brand">
+          <img src="logo.png" width="38" height="38" alt="">
           <div>
-            <span class="micro-label">PURE EXTENSION</span>
-            <h2 id="status-title">正在启动纯插件</h2>
-            <p id="status-detail">正在读取本地加密库状态…</p>
+            <h1>DIYVM Local Vault</h1>
+            <p>LOCAL PASSWORD &amp; PASSKEY MANAGER</p>
           </div>
-        </section>
-
-        <section class="vault-summary">
+          <button id="lock-vault" class="ghost" type="button" hidden>锁定</button>
+        </div>
+        <div class="status-line" aria-live="polite">
+          <span id="status-dot" class="status-dot pending"></span>
           <div>
-            <span class="micro-label">LOCAL VAULT</span>
-            <strong id="vault-state">—</strong>
+            <strong id="status-title">正在读取本地 Vault</strong>
+            <small id="status-detail">所有凭据仅在 Chrome 扩展中处理</small>
           </div>
-          <div id="vault-orbit" class="vault-orbit" aria-hidden="true">
-            <span id="vault-orbit-symbol">●</span>
-          </div>
-        </section>
-      </section>
+          <button id="refresh" class="icon-button" type="button" aria-label="刷新">↻</button>
+        </div>
+        <dl class="metrics">
+          <div><dt>PASSKEYS</dt><dd id="passkey-count">0</dd></div>
+          <div><dt>PASSWORDS</dt><dd id="password-count">0</dd></div>
+          <div><dt>RISKS</dt><dd id="risk-count">0</dd></div>
+          <div><dt>AUTO LOCK</dt><dd id="auto-lock-label">15M</dd></div>
+        </dl>
+      </header>
 
       <section class="workspace">
-        <form id="vault-form" class="vault-form" hidden>
+        <form id="vault-form" class="card vault-form" hidden>
           <label for="master-password">主密码</label>
-          <div class="password-row">
+          <div class="inline">
             <input
               id="master-password"
-              name="master-password"
               type="password"
               minlength="12"
               maxlength="1024"
+              autocomplete="current-password"
               required
             >
-            <button id="vault-action" type="submit">解锁凭据库</button>
+            <button id="vault-action" type="submit">解锁</button>
           </div>
-          <small>至少 12 个字符；遗失后无法恢复本地凭据。</small>
+          <small>至少 12 个 UTF-8 字节。主密码不会保存，也无法找回。</small>
         </form>
 
-        <section id="credential-section" class="credentials" hidden>
-          <div class="section-heading">
-            <div>
-              <span>LOCAL CREDENTIAL LEDGER</span>
-              <h3>本地通行密钥</h3>
-            </div>
-            <small>仅保存在本机</small>
-          </div>
-          <p id="credential-empty" class="empty">暂无本地凭据</p>
-          <ul id="credential-list"></ul>
-        </section>
+        <div id="vault-content" hidden>
+          <nav class="tabs" aria-label="Vault 功能">
+            <button type="button" data-tab="quick" class="active">当前页面</button>
+            <button type="button" data-tab="passwords">密码</button>
+            <button type="button" data-tab="passkeys">通行密钥</button>
+            <button type="button" data-tab="security">安全</button>
+            <button type="button" data-tab="settings">设置</button>
+          </nav>
 
-        <section class="backup-tools" aria-labelledby="backup-heading">
-          <div class="section-heading">
-            <div>
-              <span>ENCRYPTED LOCAL BACKUP</span>
-              <h3 id="backup-heading">纯插件数据备份</h3>
+          <section class="tab-panel active" data-panel="quick">
+            <div class="section-heading">
+              <div>
+                <span>CURRENT ORIGIN</span>
+                <h2>当前页面</h2>
+              </div>
+              <small id="current-origin">非 HTTPS 页面</small>
             </div>
-            <small>可移植加密文件</small>
-          </div>
-          <p class="backup-description">
-            导出文件仅包含加密数据。恢复时仍需原主密码。
-          </p>
-          <div class="backup-actions">
-            <button id="export-backup" class="secondary" type="button">导出备份</button>
-            <button id="import-backup" class="secondary" type="button">导入备份</button>
-          </div>
-          <input
-            id="import-backup-file"
-            type="file"
-            accept=".json,.diyvmpasskey.json,application/json"
-            hidden
-          >
-          <p id="backup-status" class="backup-status" aria-live="polite"></p>
-        </section>
+            <div class="toolbar">
+              <button id="capture-login" type="button">保存当前登录表单</button>
+            </div>
+            <p id="quick-empty" class="empty">当前网站没有匹配的密码</p>
+            <ul id="quick-password-list" class="item-list"></ul>
+            <p class="hint">点击填充只临时访问当前标签页，不会自动提交表单。</p>
+          </section>
 
-        <div class="actions">
-          <button id="lock-vault" class="secondary" type="button" hidden>锁定凭据库</button>
-          <button id="refresh" class="secondary" type="button">刷新状态</button>
+          <section class="tab-panel" data-panel="passwords">
+            <div class="section-heading">
+              <div>
+                <span>ENCRYPTED PASSWORDS</span>
+                <h2>本地密码</h2>
+              </div>
+              <button id="add-password" type="button">＋ 新建</button>
+            </div>
+            <div class="filter-row">
+              <input id="password-search" type="search" placeholder="搜索名称、网站、用户名或标签">
+              <label><input id="show-password-trash" type="checkbox"> 回收站</label>
+            </div>
+            <p id="password-empty" class="empty">暂无本地密码</p>
+            <ul id="password-list" class="item-list"></ul>
+          </section>
+
+          <section class="tab-panel" data-panel="passkeys">
+            <div class="section-heading">
+              <div>
+                <span>LOCAL PASSKEYS</span>
+                <h2>本地通行密钥</h2>
+              </div>
+              <small>WebAuthn</small>
+            </div>
+            <div class="filter-row">
+              <input id="passkey-search" type="search" placeholder="搜索站点、账号、别名或标签">
+              <label><input id="show-passkey-trash" type="checkbox"> 回收站</label>
+            </div>
+            <p id="passkey-empty" class="empty">暂无本地通行密钥</p>
+            <ul id="passkey-list" class="item-list"></ul>
+          </section>
+
+          <section class="tab-panel" data-panel="security">
+            <div class="section-heading">
+              <div>
+                <span>LOCAL SECURITY CHECK</span>
+                <h2>安全检查</h2>
+              </div>
+              <small>完全离线</small>
+            </div>
+            <div class="audit-grid">
+              <article><strong id="audit-weak">0</strong><span>弱密码</span></article>
+              <article><strong id="audit-reused">0</strong><span>重复使用</span></article>
+              <article><strong id="audit-stale">0</strong><span>长期未更新</span></article>
+              <article><strong id="audit-trash">0</strong><span>回收站</span></article>
+            </div>
+
+            <section class="card subsection">
+              <h3>加密备份</h3>
+              <p id="last-backup">尚未记录备份</p>
+              <div class="button-grid">
+                <button id="export-backup" type="button">导出</button>
+                <button id="verify-backup" class="secondary" type="button">验证</button>
+                <button id="import-backup" class="secondary" type="button">恢复</button>
+              </div>
+              <input id="verify-backup-file" type="file" accept=".json,.diyvmpasskey.json" hidden>
+              <input id="import-backup-file" type="file" accept=".json,.diyvmpasskey.json" hidden>
+              <p id="backup-status" class="status-message" aria-live="polite"></p>
+            </section>
+
+            <details class="card subsection">
+              <summary>本地加密安全日志</summary>
+              <ul id="audit-log" class="audit-log"></ul>
+            </details>
+
+            <details class="card subsection">
+              <summary>修改主密码</summary>
+              <form id="change-password-form" class="stacked-form">
+                <label>当前主密码<input id="current-master-password" type="password" minlength="12" required></label>
+                <label>新主密码<input id="new-master-password" type="password" minlength="12" required></label>
+                <label>确认新主密码<input id="confirm-master-password" type="password" minlength="12" required></label>
+                <button type="submit">更新主密码</button>
+              </form>
+            </details>
+          </section>
+
+          <section class="tab-panel" data-panel="settings">
+            <div class="section-heading">
+              <div>
+                <span>VAULT SETTINGS</span>
+                <h2>设置与站点权限</h2>
+              </div>
+              <small>最小权限</small>
+            </div>
+
+            <section class="card subsection">
+              <label for="auto-lock-minutes">自动锁定</label>
+              <select id="auto-lock-minutes">
+                <option value="5">5 分钟</option>
+                <option value="15">15 分钟</option>
+                <option value="30">30 分钟</option>
+                <option value="60">60 分钟</option>
+              </select>
+            </section>
+
+            <section class="card subsection">
+              <h3>Amazon 全球站</h3>
+              <p>美国站始终启用；其他区域站仅在你主动开启后获得权限。</p>
+              <div id="amazon-region-list" class="permission-list"></div>
+            </section>
+
+            <section class="card subsection">
+              <h3>指定网站自动填充</h3>
+              <p>默认使用“点击后填充”。这里只列出你单独授权的 HTTPS 网站。</p>
+              <form id="add-autofill-origin-form" class="inline">
+                <input id="autofill-origin" type="url" placeholder="https://example.com" required>
+                <button type="submit">授权</button>
+              </form>
+              <ul id="autofill-origin-list" class="permission-list"></ul>
+            </section>
+          </section>
         </div>
 
-        <p class="notice">主密码不会保存；可手动锁定，Chrome 重启或插件更新、重载后需要重新解锁。</p>
+        <p id="operation-status" class="status-message" aria-live="polite"></p>
       </section>
 
-      <dl class="metrics">
-        <div>
-          <dt>EXT</dt>
-          <dd id="extension-version">—</dd>
-        </div>
-        <div>
-          <dt>STORE</dt>
-          <dd id="storage-engine">—</dd>
-        </div>
-        <div>
-          <dt>PROTOCOL</dt>
-          <dd id="protocol-version">—</dd>
-        </div>
-        <div>
-          <dt>PASSKEYS</dt>
-          <dd><span id="credential-count">0</span></dd>
-        </div>
-      </dl>
-
-      <footer class="product-footer">
-        <a href="https://www.diyvm.com/" target="_blank" rel="noopener noreferrer">DIYVM 官网</a>
-        <span>LOCAL ONLY · CHROME</span>
+      <footer>
+        <span>v<span id="extension-version">—</span></span>
+        <a href="https://www.diyvm.com/" target="_blank" rel="noopener noreferrer">DIYVM</a>
+        <span>LOCAL ONLY</span>
       </footer>
     </main>
+
+    <dialog id="password-dialog">
+      <form id="password-form" method="dialog" class="dialog-form">
+        <header>
+          <div>
+            <span>ENCRYPTED LOGIN</span>
+            <h2 id="password-dialog-title">新建密码</h2>
+          </div>
+          <button id="close-password-dialog" class="ghost" type="button" aria-label="关闭">×</button>
+        </header>
+        <input id="password-item-id" type="hidden">
+        <label>名称<input id="password-name" maxlength="128" required></label>
+        <label>HTTPS 网站<input id="password-origin" type="url" required></label>
+        <label>用户名<input id="password-username" maxlength="512" autocomplete="username"></label>
+        <label>
+          密码
+          <div class="inline">
+            <input id="password-secret" type="password" maxlength="16384" autocomplete="new-password" required>
+            <button id="toggle-password" class="secondary compact" type="button">显示</button>
+          </div>
+        </label>
+        <div class="generator">
+          <label>长度 <input id="generator-length" type="number" min="12" max="128" value="20"></label>
+          <button id="generate-password" class="secondary" type="button">生成强密码</button>
+          <small id="password-strength">尚未输入密码</small>
+        </div>
+        <label>标签<input id="password-tags" placeholder="工作, 采购"></label>
+        <label>加密备注<textarea id="password-notes" maxlength="65536"></textarea></label>
+        <label class="check"><input id="password-favorite" type="checkbox"> 收藏</label>
+        <label class="check"><input id="password-autofill" type="checkbox"> 允许在该网站加载时自动填充</label>
+        <div class="dialog-actions">
+          <button id="cancel-password-dialog" class="secondary" type="button">取消</button>
+          <button type="submit">加密保存</button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="popup.js"></script>
   </body>
 </html>

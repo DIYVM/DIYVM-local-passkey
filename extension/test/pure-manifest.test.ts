@@ -10,6 +10,7 @@ interface ExtensionManifest {
   version?: string;
   permissions?: string[];
   host_permissions?: string[];
+  optional_host_permissions?: string[];
   content_scripts?: Array<{
     all_frames?: boolean;
     js?: string[];
@@ -24,12 +25,17 @@ async function readManifest(): Promise<ExtensionManifest> {
 }
 
 describe("pure extension manifest", () => {
-  it("uses the production identity and only the storage permission", async () => {
+  it("uses the production identity and required local-vault permissions", async () => {
     const manifest = await readManifest();
-    assert.equal(manifest.name, "DIYVM Local Passkey");
-    assert.equal(manifest.version, "0.4.1");
+    assert.equal(manifest.name, "DIYVM Local Vault");
+    assert.equal(manifest.version, "1.0.0");
     assert.equal(manifest.key, undefined);
-    assert.deepEqual(manifest.permissions, ["storage"]);
+    assert.deepEqual(manifest.permissions, [
+      "storage",
+      "activeTab",
+      "scripting",
+      "alarms"
+    ]);
   });
 
   it("limits WebAuthn page access to amazon.com", async () => {
@@ -38,6 +44,17 @@ describe("pure extension manifest", () => {
       "https://amazon.com/*",
       "https://*.amazon.com/*"
     ]);
+  });
+
+  it("keeps global Amazon and persistent autofill access optional", async () => {
+    const manifest = await readManifest();
+    assert(manifest.optional_host_permissions?.includes(
+      "https://amazon.co.jp/*"
+    ));
+    assert(manifest.optional_host_permissions?.includes(
+      "https://amazon.co.uk/*"
+    ));
+    assert(manifest.optional_host_permissions?.includes("https://*/*"));
   });
 
   it("injects the direct page bridge before site WebAuthn code", async () => {

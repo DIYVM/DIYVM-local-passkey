@@ -187,17 +187,19 @@ describe("pure extension WebAuthn", () => {
       creationOptions()
     );
     const records = await store.listCredentials();
-    assert.equal(records.length, 1);
-    const ciphertextText = new TextDecoder().decode(
-      records[0]?.encryptedPayload.ciphertext
-    );
-    assert.doesNotMatch(ciphertextText, /amazon\.com|tester@example\.com/);
+    assert.equal(records.length, 2);
+    for (const record of records) {
+      const ciphertextText = new TextDecoder().decode(
+        record.encryptedPayload.ciphertext
+      );
+      assert.doesNotMatch(ciphertextText, /amazon\.com|tester@example\.com/);
+    }
 
-    now += 24 * 60 * 60 * 1_000;
+    now += 14 * 60 * 1_000;
     assert.equal((await vault.status()).vaultState, "unlocked");
-
-    await vault.lock();
+    now += 2 * 60 * 1_000;
     assert.equal((await vault.status()).vaultState, "locked");
+
     await assert.rejects(
       () => vault.unlock("wrong password"),
       (error) =>
@@ -224,6 +226,25 @@ describe("pure extension WebAuthn", () => {
       type: "webauthn.create",
       challenge: creation.challenge,
       origin: "https://signin.aws.amazon.com:8443",
+      crossOrigin: false
+    });
+
+    const japan = {
+      ...creationOptions(),
+      rp: {
+        id: "amazon.co.jp",
+        name: "Amazon Japan"
+      },
+      challenge: encodeBase64Url(bytes(32, 211))
+    };
+    const japanCredential = await authenticator.makeCredential(
+      "https://www.amazon.co.jp",
+      japan
+    );
+    assert.deepEqual(decodeJson(japanCredential.response.clientDataJSON), {
+      type: "webauthn.create",
+      challenge: japan.challenge,
+      origin: "https://www.amazon.co.jp",
       crossOrigin: false
     });
   });

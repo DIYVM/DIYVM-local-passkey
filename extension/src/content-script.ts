@@ -79,7 +79,7 @@ function runtimeFailureMessage(error: unknown): string {
       : typeof error === "string"
         ? error
         : "未知通信错误";
-  return `DIYVM Local Passkey 后台通信失败：${detail}。请刷新网页后重试`;
+  return `DIYVM Local Vault 后台通信失败：${detail}。请刷新网页后重试`;
 }
 
 function postError(

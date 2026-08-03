@@ -5,9 +5,85 @@ export interface CredentialSummary {
   rpId: string;
   userName: string | null;
   displayName: string | null;
+  alias: string | null;
+  favorite: boolean;
+  tags: string[];
   signCount: number;
   createdAt: number;
   lastUsedAt: number | null;
+  deletedAt: number | null;
+}
+
+export interface PasswordSummary {
+  itemId: string;
+  name: string;
+  origin: string;
+  username: string;
+  favorite: boolean;
+  tags: string[];
+  autoFill: boolean;
+  createdAt: number;
+  updatedAt: number;
+  lastUsedAt: number | null;
+  deletedAt: number | null;
+  strengthScore: number;
+  weak: boolean;
+  reused: boolean;
+}
+
+export interface PasswordDetails {
+  itemId: string;
+  name: string;
+  origin: string;
+  username: string;
+  password: string;
+  notes: string;
+  favorite: boolean;
+  tags: string[];
+  autoFill: boolean;
+  createdAt: number;
+  updatedAt: number;
+  lastUsedAt: number | null;
+  deletedAt: number | null;
+}
+
+export interface PasswordInput {
+  itemId?: string;
+  name: string;
+  origin: string;
+  username: string;
+  password: string;
+  notes?: string;
+  favorite?: boolean;
+  tags?: string[];
+  autoFill?: boolean;
+}
+
+export interface PasswordAuditSummary {
+  total: number;
+  weak: number;
+  reused: number;
+  stale: number;
+  insecureOrigins: number;
+}
+
+export type AutoLockMinutes = 5 | 15 | 30 | 60;
+
+export interface VaultSettings {
+  autoLockMinutes: AutoLockMinutes;
+  lastBackupAt: number | null;
+  enabledAmazonRegions: string[];
+  autoFillOrigins: string[];
+}
+
+export interface VaultStatus {
+  vaultState: VaultState;
+  itemCount: number;
+  passkeyCount: number;
+  passwordCount: number;
+  trashCount: number;
+  settings: VaultSettings;
+  passwordAudit: PasswordAuditSummary;
 }
 
 export type ExtensionErrorCode =
@@ -23,6 +99,7 @@ export type ExtensionErrorCode =
   | "VAULT_NOT_INITIALIZED"
   | "INVALID_PASSWORD"
   | "CREDENTIAL_NOT_FOUND"
+  | "PERMISSION_DENIED"
   | "UNSUPPORTED_MESSAGE"
   | "UNSUPPORTED_PROTOCOL"
   | "USE_NATIVE_AUTHENTICATOR"

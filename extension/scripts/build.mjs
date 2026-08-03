@@ -6,6 +6,7 @@ import { build } from "esbuild";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = resolve(packageRoot, "dist");
+const isStoreBuild = process.argv.includes("--store");
 
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(outputDirectory, { recursive: true });
@@ -17,14 +18,15 @@ await build({
     popup: "src/popup.ts",
     confirmation: "src/confirmation.ts",
     "page-bridge": "src/page-bridge.ts",
-    "content-script": "src/content-script.ts"
+    "content-script": "src/content-script.ts",
+    "password-autofill": "src/password-autofill.ts"
   },
   bundle: true,
   format: "esm",
   outdir: outputDirectory,
   platform: "browser",
   target: "chrome120",
-  sourcemap: true,
+  sourcemap: !isStoreBuild,
   logLevel: "info"
 });
 

@@ -8,14 +8,18 @@ import {
 } from "./indexeddb-vault";
 
 export const VAULT_BACKUP_FORMAT = "diyvm-local-passkey-backup";
-export const VAULT_BACKUP_VERSION = 1 as const;
+export const VAULT_BACKUP_VERSION = 2 as const;
 export const MAX_VAULT_BACKUP_BYTES = 20 * 1024 * 1024;
+const LEGACY_BACKUP_VERSION = 1 as const;
+const AUDIT_LOG_ID = "DIYVM_AUDIT_LOG_V1";
 
 interface SerializedVaultMetadata {
   schemaVersion: typeof VAULT_SCHEMA_VERSION;
   kdf: {
     algorithm: VaultMetadataRecord["kdf"]["algorithm"];
     iterations: number;
+    memoryCostKib?: number;
+    parallelism?: number;
     salt: string;
   };
   wrappedVaultKey: {
@@ -41,7 +45,7 @@ interface SerializedCredential {
 
 interface BackupPayload {
   format: typeof VAULT_BACKUP_FORMAT;
-  formatVersion: typeof VAULT_BACKUP_VERSION;
+  formatVersion: typeof VAULT_BACKUP_VERSION | typeof LEGACY_BACKUP_VERSION;
   exportedAt: string;
   vault: {
     metadata: SerializedVaultMetadata;
@@ -62,7 +66,7 @@ export async function exportVaultBackup(
 ): Promise<string> {
   const snapshot = await store.exportSnapshot();
   if (!snapshot) {
-    throw new Error("尚未创建可导出的纯插件凭据库");
+    throw new Error("尚未创建可导出的本地 Vault");
   }
 
   const payload = serializeSnapshot(snapshot, exportedAt.toISOString());
@@ -80,12 +84,29 @@ export async function exportVaultBackup(
 export async function importVaultBackup(
   store: IndexedDbVaultStore,
   backupText: string
-): Promise<{ credentialCount: number; exportedAt: string }> {
+): Promise<{ credentialCount: number; itemCount: number; exportedAt: string }> {
   const { snapshot, exportedAt } = await parseVaultBackup(backupText);
   await store.replaceAll(snapshot);
+  const itemCount = countUserItems(snapshot);
   return {
-    credentialCount: snapshot.credentials.length,
+    credentialCount: itemCount,
+    itemCount,
     exportedAt
+  };
+}
+
+export async function verifyVaultBackup(
+  backupText: string
+): Promise<{
+  itemCount: number;
+  exportedAt: string;
+  kdf: VaultMetadataRecord["kdf"]["algorithm"];
+}> {
+  const { snapshot, exportedAt } = await parseVaultBackup(backupText);
+  return {
+    itemCount: countUserItems(snapshot),
+    exportedAt,
+    kdf: snapshot.metadata.kdf.algorithm
   };
 }
 
@@ -109,7 +130,11 @@ export async function parseVaultBackup(
   const document = parseBackupDocument(value);
   const snapshot = deserializeSnapshot(document);
   validateSnapshot(snapshot);
-  const payload = serializeSnapshot(snapshot, document.exportedAt);
+  const payload = serializeSnapshot(
+    snapshot,
+    document.exportedAt,
+    document.formatVersion
+  );
   const expectedChecksum = await sha256Base64Url(canonicalPayload(payload));
   if (!constantTimeEqual(expectedChecksum, document.checksum.value)) {
     throw new Error("备份文件完整性校验失败");
@@ -130,12 +155,14 @@ export function createBackupFileName(now = new Date()): string {
 
 function serializeSnapshot(
   snapshot: VaultSnapshot,
-  exportedAt: string
+  exportedAt: string,
+  formatVersion: typeof VAULT_BACKUP_VERSION | typeof LEGACY_BACKUP_VERSION =
+    VAULT_BACKUP_VERSION
 ): BackupPayload {
   validateSnapshot(snapshot);
   return {
     format: VAULT_BACKUP_FORMAT,
-    formatVersion: VAULT_BACKUP_VERSION,
+    formatVersion,
     exportedAt,
     vault: {
       metadata: {
@@ -143,6 +170,12 @@ function serializeSnapshot(
         kdf: {
           algorithm: snapshot.metadata.kdf.algorithm,
           iterations: snapshot.metadata.kdf.iterations,
+          ...(snapshot.metadata.kdf.memoryCostKib === undefined
+            ? {}
+            : { memoryCostKib: snapshot.metadata.kdf.memoryCostKib }),
+          ...(snapshot.metadata.kdf.parallelism === undefined
+            ? {}
+            : { parallelism: snapshot.metadata.kdf.parallelism }),
           salt: encodeBase64Url(snapshot.metadata.kdf.salt)
         },
         wrappedVaultKey: {
@@ -181,11 +214,17 @@ function deserializeSnapshot(document: BackupDocument): VaultSnapshot {
   return {
     metadata: {
       key: "vault",
-      schemaVersion: VAULT_SCHEMA_VERSION,
-      kdf: {
-        algorithm: metadata.kdf.algorithm,
-        iterations: metadata.kdf.iterations,
-        salt: decodeBase64Url(metadata.kdf.salt, 64)
+        schemaVersion: VAULT_SCHEMA_VERSION,
+        kdf: {
+          algorithm: metadata.kdf.algorithm,
+          iterations: metadata.kdf.iterations,
+          ...(metadata.kdf.memoryCostKib === undefined
+            ? {}
+            : { memoryCostKib: metadata.kdf.memoryCostKib }),
+          ...(metadata.kdf.parallelism === undefined
+            ? {}
+            : { parallelism: metadata.kdf.parallelism }),
+          salt: decodeBase64Url(metadata.kdf.salt, 64)
       },
       wrappedVaultKey: {
         algorithm: "AES-256-GCM",
@@ -227,7 +266,8 @@ function parseBackupDocument(value: unknown): BackupDocument {
   }
   if (
     value.format !== VAULT_BACKUP_FORMAT ||
-    value.formatVersion !== VAULT_BACKUP_VERSION ||
+    (value.formatVersion !== VAULT_BACKUP_VERSION &&
+      value.formatVersion !== LEGACY_BACKUP_VERSION) ||
     typeof value.exportedAt !== "string" ||
     !validIsoDate(value.exportedAt) ||
     !isRecord(value.vault) ||
@@ -245,7 +285,7 @@ function parseBackupDocument(value: unknown): BackupDocument {
     formatVersion: VAULT_BACKUP_VERSION,
     exportedAt: value.exportedAt,
     vault: {
-      metadata: parseMetadata(value.vault.metadata),
+      metadata: parseMetadata(value.vault.metadata, value.formatVersion),
       credentials: value.vault.credentials.map(parseCredential)
     },
     checksum: {
@@ -255,13 +295,20 @@ function parseBackupDocument(value: unknown): BackupDocument {
   };
 }
 
-function parseMetadata(value: Record<string, unknown>): SerializedVaultMetadata {
+function parseMetadata(
+  value: Record<string, unknown>,
+  formatVersion: typeof VAULT_BACKUP_VERSION | typeof LEGACY_BACKUP_VERSION
+): SerializedVaultMetadata {
   if (
     value.schemaVersion !== VAULT_SCHEMA_VERSION ||
     !isRecord(value.kdf) ||
     (value.kdf.algorithm !== "ARGON2ID" &&
       value.kdf.algorithm !== "PBKDF2-SHA-256") ||
     typeof value.kdf.iterations !== "number" ||
+    (value.kdf.algorithm === "ARGON2ID" &&
+      formatVersion === VAULT_BACKUP_VERSION &&
+      (typeof value.kdf.memoryCostKib !== "number" ||
+        typeof value.kdf.parallelism !== "number")) ||
     typeof value.kdf.salt !== "string" ||
     !isRecord(value.wrappedVaultKey) ||
     value.wrappedVaultKey.algorithm !== "AES-256-GCM" ||
@@ -277,6 +324,18 @@ function parseMetadata(value: Record<string, unknown>): SerializedVaultMetadata 
     kdf: {
       algorithm: value.kdf.algorithm,
       iterations: value.kdf.iterations,
+      ...(value.kdf.algorithm === "ARGON2ID"
+        ? {
+            memoryCostKib:
+              typeof value.kdf.memoryCostKib === "number"
+                ? value.kdf.memoryCostKib
+                : 19 * 1024,
+            parallelism:
+              typeof value.kdf.parallelism === "number"
+                ? value.kdf.parallelism
+                : 1
+          }
+        : {}),
       salt: value.kdf.salt
     },
     wrappedVaultKey: {
@@ -388,4 +447,10 @@ function validIsoDate(value: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function countUserItems(snapshot: VaultSnapshot): number {
+  return snapshot.credentials.filter(
+    (credential) => credential.credentialId !== AUDIT_LOG_ID
+  ).length;
 }

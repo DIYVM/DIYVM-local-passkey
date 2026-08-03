@@ -1,238 +1,112 @@
 <div align="center">
-  <a href="https://www.diyvm.com">
-    <img src="./extension/src/logo.png" width="112" height="112" alt="DIYVM Local Passkey">
-  </a>
-
-  <h1>DIYVM Local Passkey</h1>
-
+  <img src="./extension/src/logo.png" width="112" height="112" alt="DIYVM Local Vault">
+  <h1>DIYVM Local Vault</h1>
+  <p>A password and passkey manager that runs entirely inside Chrome.</p>
   <p>
-    <strong>A local passkey manager that runs entirely inside a Chrome extension</strong>
+    <img src="https://img.shields.io/badge/version-1.0.0-2458d3?style=flat-square" alt="Version 1.0.0">
+    <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
+    <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
-
   <p>
-    No native service · No Native Messaging · No cloud credential sync
-  </p>
-
-  <p>
-    <a href="https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml">
-      <img src="https://github.com/DIYVM/DIYVM-local-passkey/actions/workflows/build-extension.yml/badge.svg?branch=main" alt="Build Chrome Extension">
-    </a>
-    <img src="https://img.shields.io/badge/version-0.4.1-2458d3?style=flat-square" alt="Version 0.4.1">
-    <img src="https://img.shields.io/badge/Chrome-120%2B-1a73e8?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome 120+">
-    <img src="https://img.shields.io/badge/Manifest-V3-0b1736?style=flat-square" alt="Manifest V3">
-    <a href="./LICENSE">
-      <img src="https://img.shields.io/badge/license-Apache--2.0-2f80ed?style=flat-square" alt="Apache-2.0 License">
-    </a>
-  </p>
-
-  <p>
-    <a href="./README.md">简体中文</a>
-    ·
-    <strong>English</strong>
-  </p>
-
-  <p>
-    <a href="https://www.diyvm.com">Official Website</a>
-    ·
-    <a href="https://github.com/DIYVM/DIYVM-local-passkey/releases/latest">Download Latest Release</a>
-    ·
+    <a href="./README.md">中文</a> ·
+    <a href="./CHANGELOG.md">Changelog</a> ·
+    <a href="./docs/privacy-policy.md">Privacy Policy</a> ·
     <a href="./docs/security-boundary.md">Security Boundary</a>
-    ·
-    <a href="./docs/privacy-policy.md">Privacy Policy</a>
   </p>
 </div>
 
----
+## Overview
 
-DIYVM Local Passkey `0.4.1` is a pure Manifest V3 Chrome extension for
-`amazon.com` and its HTTPS subdomains. Passkey
-generation, signing, encryption, and storage all happen inside the extension.
-It does not require `PasskeyHost.exe` and does not request the
-`nativeMessaging` or `webAuthenticationProxy` permissions.
+DIYVM Local Vault `1.0.0` expands the original Amazon local-passkey extension into a
+local password and passkey vault. It requires no account or cloud service. Passwords,
+passkey private keys, and audit events are encrypted before they are stored locally.
 
-> [!IMPORTANT]
-> This version is intended for testing and compatibility validation. It has
-> not yet undergone an external security audit or Chrome Web Store review.
-> Use only recoverable test accounts and always retain a password, OTP, or
-> another security key.
+An existing `0.4.x` vault migrates its key-derivation metadata after the first successful
+unlock. Existing passkeys do not need to be recreated.
 
-This independent project is not affiliated with, authorized by, or endorsed
-by Amazon.com, Inc. or its affiliates.
+## Features
 
-## Core Capabilities
+- One encrypted vault for passwords and ES256 passkeys.
+- Passkey creation and sign-in on the major Amazon marketplaces worldwide.
+- User-initiated password matching and filling for the current page, without form submission.
+- Optional persistent autofill that the user grants one HTTPS origin at a time.
+- Add, edit, search, favorite, tag, annotate, rename, trash, restore, and permanently delete.
+- Configurable password generator and local weak, reused, and stale-password checks.
+- Automatic locking after 5, 15, 30, or 60 minutes.
+- Encrypted backup, structural verification, full restore, and master-password change.
+- Encrypted local audit history that never contains plaintext passwords.
 
-| Capability | Implementation |
+## Security model
+
+- New vaults use Argon2id (19 MiB, 2 iterations, parallelism 1) to derive a key that
+  wraps a random 256-bit Vault Key.
+- Each password, passkey, and audit record is independently encrypted with AES-256-GCM.
+- The master password is not stored. The unlocked Vault Key lives only in
+  `chrome.storage.session` and is subject to automatic locking.
+- Passwords match an exact HTTPS origin. The extension never clicks a sign-in button
+  or submits a form.
+- The passkey page bridge is limited to supported top-level Amazon pages and validates
+  the browser-provided sender origin and RP ID.
+- No remote JavaScript, Wasm, or configuration code is loaded.
+
+See [Security Boundary](./docs/security-boundary.md) for the threat model and limitations.
+
+## Permissions
+
+| Permission | Purpose |
 | --- | --- |
-| Local passkeys | Generates an independent ES256 / P-256 key pair for every credential with Web Crypto |
-| Encrypted vault | Encrypts private keys, RP IDs, account information, and counters with AES-256-GCM before storing them in IndexedDB |
-| Master password protection | Uses PBKDF2-SHA-256 with 600,000 iterations to wrap a random 256-bit Vault Key |
-| Session locking | Keeps the Vault Key only in `chrome.storage.session`; users can lock manually, and Chrome clears it on browser restart or extension update/reload |
-| Operation confirmation | Shows a separate confirmation window for every registration or sign-in, with options to use the local passkey, switch to the system authenticator, or cancel |
-| Data migration | Supports encrypted vault export and atomic import; restoring a vault still requires its original master password |
-| Adaptive interface | Follows the system light/dark preference and uses the DIYVM website visual style |
-| Permission scope | Requests only `storage` as a functional permission; page access is limited to `amazon.com` and its HTTPS subdomains |
+| `storage` | Stores non-secret settings and the temporary unlocked session |
+| `activeTab` | Reads or fills the current login page after an explicit user click |
+| `scripting` | Performs one-time capture/fill and registers scripts for user-approved sites |
+| `alarms` | Locks the vault after the selected inactivity period |
+| Required `amazon.com` hosts | Preserves the original Amazon US passkey workflow |
+| Optional Amazon hosts | Requested only when the user enables a marketplace |
+| Optional HTTPS hosts | Requested for one exact origin only when persistent autofill is enabled |
 
-The extension does not read or copy private keys from Windows Hello, Chrome
-Password Manager, USB security keys, or any other authenticator.
+Click-to-fill does not need persistent site access. The `https://*/*` optional pattern only
+allows Chrome to display a per-site permission prompt for the specific origin selected by
+the user; the extension never requests all sites at once.
 
-## How It Works
+## Supported Amazon marketplaces
 
-```mermaid
-flowchart LR
-    A["Website starts a WebAuthn request"] --> B["Chrome page bridge"]
-    B --> C["DIYVM confirmation window"]
-    C --> D["In-extension software authenticator"]
-    D --> E["Web Crypto<br>Key generation / signing"]
-    D <--> F["AES-256-GCM encrypted vault<br>IndexedDB"]
-    G["Master password"] --> H["PBKDF2-SHA-256<br>Wrap Vault Key"]
-    H --> F
-```
+The US marketplace is enabled by default. Canada, Mexico, Brazil, the United Kingdom,
+Germany, France, Italy, Spain, the Netherlands, Sweden, Poland, Belgium, Ireland, Türkiye,
+Japan, India, Australia, Singapore, the United Arab Emirates, Saudi Arabia, Egypt, and
+South Africa can be enabled individually, including their HTTPS subdomains.
 
-The page bridge handles top-level, non-conditional WebAuthn requests only on
-`amazon.com` and its HTTPS subdomains. When the user selects **Use Chrome /
-system instead**, the
-request falls back to the browser's native implementation.
+## Build and test
 
-## Compatibility
-
-| Item | Current Status |
-| --- | --- |
-| Chrome | Version `120` or later |
-| Extension platform | Manifest V3 |
-| `amazon.com` and its HTTPS subdomains | Supports passkey creation and sign-in; manually verified with a real account |
-| Other sites | The bridge is not injected; Chrome's native WebAuthn remains active |
-| Conditional WebAuthn | Not intercepted; continues through Chrome's native implementation |
-| Algorithm | ES256 only |
-
-The pure extension does not depend on Windows executables, but cross-platform
-and physical Windows test matrices have not yet been completed.
-
-## Install the Test Build
-
-### Download from GitHub Releases
-
-1. Open the project's [latest Release](https://github.com/DIYVM/DIYVM-local-passkey/releases/latest).
-2. Download `DIYVM-Local-Passkey-Chrome-0.4.1.zip`.
-3. Optionally verify the download with the `.sha256` file from the same Release.
-4. Extract the extension ZIP.
-5. Open `chrome://extensions` and enable **Developer mode**.
-6. Select **Load unpacked** and choose the directory containing `manifest.json`.
-
-### Build from Source
-
-Node.js `20` or later is required:
+Requires Node.js 20+ and Chrome 120+.
 
 ```bash
-git clone https://github.com/DIYVM/DIYVM-local-passkey.git
-cd DIYVM-local-passkey
 npm ci
 npm run test:pure
 ```
 
-The build output is written to `extension/dist`. Load that directory from
-`chrome://extensions`.
-
-## Quick Start
-
-1. Select the DIYVM Local Passkey icon in the Chrome toolbar.
-2. Create a master password containing at least `12` UTF-8 bytes.
-3. Open [Amazon](https://www.amazon.com/) and enter a passkey registration or sign-in flow.
-4. Select **Use local passkey** in the DIYVM confirmation window.
-5. Sign in with the credential you just created.
-
-Local credentials cannot be recovered if the master password is lost. Export
-an encrypted backup before migrating to another computer or reinstalling the
-operating system.
-
-## Backup and Restore
-
-Selecting **Export backup** in the extension popup creates:
-
-```text
-DIYVM-LocalPasskey-backup-<timestamp>.diyvmpasskey.json
-```
-
-The backup contains KDF parameters, the wrapped Vault Key, and encrypted
-IndexedDB records. It does not contain plaintext RP IDs, account names, or
-private keys. Before importing, the extension validates the file size,
-version, structure, and SHA-256 checksum. It then replaces the current vault
-in a single IndexedDB transaction; failed validation leaves the existing vault
-unchanged.
-
-> [!WARNING]
-> An attacker with the backup file can attempt to guess its master password
-> offline. Use a strong master password, keep backups in trusted encrypted
-> storage, and do not transfer them through public channels.
-
-## Development and Verification
+Load `extension/dist/` as an unpacked extension from `chrome://extensions`. A store build
+without source maps is generated with:
 
 ```bash
-# Type-check the TypeScript source
-npm run check
-
-# Run all 17 local automated tests
-npm test
-
-# Build the Chrome extension
-npm run build
-
-# Type-check, test, and build in one command
-npm run test:pure
+npm run build:store
 ```
 
-Automated tests cover encrypted IndexedDB reads and writes, atomic restore,
-master password locking and unlocking, ES256 registration and sign-in,
-attestation and COSE public keys, signature counters, encrypted backup restore,
-RP ID boundaries, message validation, and Manifest permission constraints.
+## Version 1.0 limitations
 
-## Release Process
+- No cloud sync, shared vaults, payment cards, or identity-profile autofill.
+- A software passkey is not isolated as strongly as a TPM, Secure Enclave, or hardware key.
+- Once a password is filled, scripts belonging to that page may read the input value.
+  Fill credentials only on trusted sites whose domain is correct.
+- The project has automated tests and a code-level security review, but it does not claim
+  an independent third-party security audit.
+- A previously approved Chrome Web Store version and the `1.0.0` update are separate review
+  submissions. Google must review the update after it is uploaded.
 
-Every push and pull request targeting `main` runs checks, tests, and a build,
-then stores an Actions Artifact for 30 days. Formal versions are published from
-Git tags that match the version in `extension/package.json`:
+## Privacy
 
-```bash
-git tag v0.4.1
-git push origin v0.4.1
-```
-
-After the tagged build passes, GitHub Actions automatically creates the
-corresponding Release and uploads the extension ZIP and its SHA-256 checksum.
-The automatically generated `Source code (zip)` on the Release page is a
-source snapshot, not an installable Chrome extension package.
-
-## Project Structure
-
-```text
-.
-├── .github/workflows/       # Automated checks, tests, and package builds
-├── docs/                    # Development, protocol, and security documentation
-├── extension/
-│   ├── icons/               # Chrome extension icons
-│   ├── scripts/             # Build and live verification scripts
-│   ├── src/                 # Extension, software authenticator, and encrypted vault source
-│   └── test/                # Automated tests
-├── LICENSE
-└── package.json
-```
-
-The repository contains only the pure Chrome extension implementation. It does
-not include a native host, Native Messaging integration, a Windows installer,
-or source code from historical versions.
-
-## Documentation
-
-- [Development guide (Chinese)](./docs/development.md)
-- [Page bridge protocol (Chinese)](./docs/protocol.md)
-- [Security boundary and known limitations (Chinese)](./docs/security-boundary.md)
+The extension has no analytics or advertising and does not sell or transmit user data.
+Uninstalling it deletes Chrome-managed extension data. Exported backup files must be
+deleted by the user. See the [Privacy Policy](./docs/privacy-policy.md).
 
 ## License
 
-This project is licensed under the
-[Apache License 2.0](./LICENSE).
-
-<div align="center">
-  <sub>
-    Built by <a href="https://www.diyvm.com">DIYVM</a>
-  </sub>
-</div>
+[Apache License 2.0](./LICENSE)

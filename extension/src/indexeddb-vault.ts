@@ -15,6 +15,8 @@ export interface VaultMetadataRecord {
   kdf: {
     algorithm: "ARGON2ID" | "PBKDF2-SHA-256";
     iterations: number;
+    memoryCostKib?: number;
+    parallelism?: number;
     salt: ArrayBuffer;
   };
   wrappedVaultKey: {
@@ -257,6 +259,13 @@ function validateMetadata(record: VaultMetadataRecord): void {
     !Number.isSafeInteger(record.kdf.iterations) ||
     record.kdf.iterations < 1 ||
     record.kdf.iterations > 10_000_000 ||
+    (record.kdf.algorithm === "ARGON2ID" &&
+      (!Number.isSafeInteger(record.kdf.memoryCostKib) ||
+        (record.kdf.memoryCostKib ?? 0) < 8 * 1024 ||
+        (record.kdf.memoryCostKib ?? 0) > 256 * 1024 ||
+        !Number.isSafeInteger(record.kdf.parallelism) ||
+        (record.kdf.parallelism ?? 0) < 1 ||
+        (record.kdf.parallelism ?? 0) > 8)) ||
     !validBufferLength(record.kdf.salt, 16, 64) ||
     record.wrappedVaultKey.algorithm !== "AES-256-GCM" ||
     !validBufferLength(record.wrappedVaultKey.iv, 12, 12) ||
@@ -327,6 +336,12 @@ function cloneMetadata(record: VaultMetadataRecord): VaultMetadataRecord {
     kdf: {
       algorithm: record.kdf.algorithm,
       iterations: record.kdf.iterations,
+      ...(record.kdf.memoryCostKib === undefined
+        ? {}
+        : { memoryCostKib: record.kdf.memoryCostKib }),
+      ...(record.kdf.parallelism === undefined
+        ? {}
+        : { parallelism: record.kdf.parallelism }),
       salt: record.kdf.salt.slice(0)
     },
     wrappedVaultKey: {

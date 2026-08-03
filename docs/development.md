@@ -1,59 +1,90 @@
-# 纯插件开发说明
+# 开发与发布
 
-本项目将 WebAuthn 软件验证器完整放入 Manifest V3 扩展，不依赖
-Native Messaging、Windows 服务、安装器或本机可执行文件。
+## 环境
 
-## 仓库结构
+- Node.js 20+
+- npm
+- Chrome 120+
 
-- `extension/src/software-authenticator.ts`：WebAuthn 注册、认证和 ES256 签名。
-- `extension/src/pure-vault.ts`：主密码、Vault Key、AES-GCM 和凭据管理。
-- `extension/src/indexeddb-vault.ts`：加密记录的 IndexedDB 事务层。
-- `extension/src/vault-backup.ts`：加密备份导入、导出和完整性校验。
-- `extension/src/background.ts`：来源校验、确认窗口和 WebAuthn 页面桥接。
-- `extension/src/confirmation.*`：独立的扩展确认窗口。
-- `extension/src/popup.*`：解锁、锁定、凭据管理和备份页面。
-- `extension/src/types.ts`：页面桥接使用的序列化 WebAuthn 类型。
+安装、检查、测试和开发构建：
 
-仓库不包含本机宿主、Native Messaging 或 Windows 安装器源码。
-
-## 本地验证
-
-在仓库根目录运行：
-
-```text
-npm install
-npm run check
-npm test
-npm run build
+```bash
+npm ci
+npm run test:pure
 ```
 
-测试会实际执行以下流程：
+`test:pure` 依次执行 TypeScript 类型检查、Node 测试和扩展构建。开发构建输出到
+`extension/dist/`，并包含 source map。
 
-1. 创建 PBKDF2/AES-GCM 加密凭据库。
-2. 为 `amazon.com` 生成可发现的 ES256 凭据。
-3. 解析并检查 attestation、COSE 公钥、RP ID 哈希和标志位。
-4. 生成登录 assertion，并用注册公钥验证 DER 格式签名。
-5. 验证签名计数器从 0 递增到 1、2。
-6. 手动锁定、错误密码拒绝、正确密码恢复和长会话保持解锁。
-7. 导出真实加密凭据，恢复到新 IndexedDB 后继续登录。
-8. 接受 Amazon 合法父域 RP ID，并拒绝重复凭据、跨站 RP ID、非 Amazon 来源和
-   被篡改的备份。
+Chrome Web Store 构建：
 
-## 手动加载
+```bash
+npm run build:store
+```
 
-1. 运行 `npm run build`。
-2. 在 Chrome 打开 `chrome://extensions`。
-3. 开启开发者模式。
-4. 加载 `extension/dist`。
-5. 点击插件图标创建或解锁本地凭据库。
+商店构建同样输出到 `extension/dist/`，但不生成 source map。
 
-不需要安装或注册 Native Messaging Host。
+## 目录
 
-## 网站范围
+```text
+extension/
+  manifest.json
+  scripts/build.mjs
+  src/
+    background.ts             后台消息、自动锁定与 WebAuthn 调度
+    pure-vault.ts             加密保险库与数据迁移
+    indexeddb-vault.ts        IndexedDB 存储
+    password-model.ts         密码校验、生成和风险检查
+    page-password-actions.ts  当前页面一次性捕获/填充
+    password-autofill.ts      用户授权 Origin 的持续自动填充
+    amazon-sites.ts           Amazon 市场清单
+    site-access.ts            可选权限和动态脚本
+    page-bridge.ts            Amazon 页面主世界 WebAuthn 桥接
+    content-script.ts         隔离世界消息验证
+    popup.*                   保险库界面
+  test/
+docs/
+artifacts/                   本地发布产物，Git 忽略
+```
 
-扩展仅在 `https://amazon.com/*` 和 `https://*.amazon.com/*` 顶层页面运行。RP ID
-必须等于当前 Amazon 主机名，或是当前主机名下的 Amazon 父域。非 Amazon 网站、
-跨站 RP ID 和条件式 WebAuthn 请求继续使用 Chrome 原生实现。
+## 数据兼容性
 
-Amazon 真实账户已人工验证通行密钥创建和登录。自动测试覆盖 Amazon 来源策略、
-RP ID 边界、注册、签名和凭据恢复。
+IndexedDB 数据库 schema 保持版本 1，以避免破坏旧安装。加密记录在解密后按 `kind`
+区分 `password`、`passkey` 和固定的 `audit-log`。旧通行密钥记录缺少的新 UI 字段会
+在读取时使用安全默认值。
+
+保险库元数据同时识别旧 `PBKDF2-SHA-256` 与新 `ARGON2ID`。旧保险库只有在主密码
+成功验证后才会重新包装 Vault Key；迁移不会修改通行密钥私钥或凭据 ID。
+
+备份格式版本为 2，但导入器继续接受版本 1。
+
+## 手动测试清单
+
+1. 新建保险库，锁定、错误密码解锁、正确密码解锁。
+2. 新增、编辑、搜索、收藏、删除、恢复和永久删除密码。
+3. 生成密码，确认弱/重复/长期未更新统计。
+4. 在一个 HTTPS 测试页执行点击读取和点击填充，确认不自动提交。
+5. 开启某 Origin 自动填充，刷新测试；撤销后确认脚本不再运行。
+6. 逐项开启和关闭至少一个非美国 Amazon 市场权限。
+7. 创建加密备份、验证、导入并确认导入后锁定。
+8. 修改主密码，确认旧密码失败、新密码成功。
+9. 验证 Amazon 通行密钥创建、登录、取消、超时和“改用系统”路径。
+10. 关闭/重启 Chrome 后确认保险库锁定。
+
+## 发布检查
+
+```bash
+npm ci
+npm audit
+npm run test:pure
+npm run build:store
+```
+
+压缩时必须让 `manifest.json` 位于 ZIP 根目录。不得打包 `node_modules`、源码、
+source map、测试文件、本地数据库、环境文件或任何 `.key`/证书文件。上传前确认：
+
+- `manifest.json` 版本与 `package.json` 一致；
+- Manifest 不含 `key`；
+- 文件仅来自 `extension/dist/`；
+- ZIP 可以重新解压并解析 Manifest；
+- 保存 ZIP 的 SHA-256。

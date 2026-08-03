@@ -153,6 +153,7 @@ export class SoftwareAuthenticator {
     const createdAt = this.now();
     const stored: StoredSoftwareCredential = {
       schemaVersion: 1,
+      kind: "passkey",
       credentialId,
       rpId: validated.rpId,
       userHandle: options.user.id,
@@ -162,8 +163,12 @@ export class SoftwareAuthenticator {
       publicKeySpki: encodeBase64Url(publicKeySpki),
       publicKeyCose: encodeBase64Url(publicKeyCose),
       signCount: 0,
+      alias: "",
+      favorite: false,
+      tags: [],
       createdAt,
-      lastUsedAt: null
+      lastUsedAt: null,
+      deletedAt: null
     };
     await this.vault.saveCredential(stored);
 
@@ -369,7 +374,7 @@ function validateOriginAndRpId(
   const exactHost = hostname === rpId;
   const parentDomain =
     hostname.endsWith(`.${rpId}`) &&
-    (rpId === "amazon.com" || rpId.endsWith(".amazon.com"));
+    isAllowedAmazonHostname(rpId);
   if (
     !isAllowedAmazonHostname(hostname) ||
     (!exactHost && !parentDomain) ||

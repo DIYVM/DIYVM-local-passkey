@@ -1,63 +1,61 @@
 # 页面桥接协议 v1
 
-纯插件不再使用 Native Messaging。网页主世界、隔离 Content Script 和扩展后台通过
-受限消息桥交换序列化的 WebAuthn 请求和响应。
+本协议只用于受支持 Amazon 站点的通行密钥流程。普通密码捕获和填充通过
+`chrome.scripting.executeScript` 或用户授权的动态 Content Script 完成，不使用此协议。
 
-## 边界
+## 通道与边界
 
-- 页面桥接通道：`local-passkey:webauthn:v1`。
-- 页面到扩展的 public-key 负载最大 512 KiB。
+- 页面消息通道：`local-passkey:webauthn:v1`。
+- 只接受顶层、HTTPS、已启用 Amazon Origin。
 - `requestId` 为 16–128 个 ASCII 字母、数字、`_` 或 `-`。
-- 二进制统一使用无填充 Base64URL。
-- 只接受 `amazon.com` 及其 HTTPS 子域的顶层页面。
-- Content Script 校验 `event.source`、`event.origin`、消息类型、请求 ID、重复请求
-  和负载大小。
-- Background 只信任 Chrome 提供的 `sender.url` 和 `sender.tab`，不使用网页传入
-  的 Origin。
+- 页面到扩展的 public-key 载荷上限为 512 KiB。
+- 二进制数据统一使用无填充 Base64URL。
+- Content Script 验证消息来源、Origin、类型、请求 ID、重复请求和负载大小。
+- Background 只信任 Chrome 提供的 `sender.url` 和 `sender.tab`。
 
-## 注册请求
+## 创建凭据
 
-Page Script 拦截非条件式 `navigator.credentials.create()`，序列化：
+页面主世界脚本仅拦截非条件式 `navigator.credentials.create()`，序列化：
 
-- RP 与用户实体。
-- challenge。
-- 算法列表。
-- 排除凭据。
+- RP 与用户实体；
+- challenge；
+- 算法列表；
+- 排除凭据；
 - 验证器选择和扩展参数。
 
-后台确认凭据库已解锁、来源属于 Amazon、RP ID 与当前域名匹配且 ES256 可用，再
-打开独立确认窗口。
-用户批准后，软件验证器返回可恢复为 `PublicKeyCredential` 的 attestation 数据。
+后台验证保险库已经解锁、实际来源属于启用的 Amazon 市场、RP ID 与来源匹配且包含
+ES256。用户在独立确认窗口批准后，软件验证器创建密钥并返回可恢复为
+`PublicKeyCredential` 的 attestation 数据。
 
-## 登录请求
+## 获取断言
 
-Page Script 拦截非条件式 `navigator.credentials.get()`，序列化 challenge、RP ID、
-允许凭据和用户验证要求。后台只解密与 RP ID 和允许列表同时匹配的本地凭据。
+页面脚本仅拦截非条件式 `navigator.credentials.get()`，序列化 challenge、RP ID、
+允许凭据和用户验证要求。后台只解密 RP ID 与允许列表同时匹配的本地凭据。
 
-登录响应包含：
+返回内容包括：
 
-- `clientDataJSON`。
-- `authenticatorData`。
-- DER 格式 ES256 签名。
-- `userHandle`。
+- `clientDataJSON`；
+- `authenticatorData`；
+- DER 格式 ES256 签名；
+- `userHandle`；
 - 递增后的签名计数器。
 
-## 确认和回退
+## 确认、取消与回退
 
-每次操作都会打开 `confirmation.html`。该页面不是网站内容，也没有列入
-`web_accessible_resources`。
+本地创建或签名会打开 `confirmation.html`：
 
-- “使用本地通行密钥”：继续纯插件操作。
-- “改用 Chrome / 系统”：调用插件安装前保存的原生 WebAuthn 方法。
+- “使用本地通行密钥”：继续本地操作；
+- “改用 Chrome / 系统”：调用扩展安装前保存的原生 WebAuthn 方法；
 - “取消”：返回 `AbortError`。
 
-页面取消、确认窗口关闭或 120 秒超时都会终止等待中的操作。
+页面取消、确认窗口关闭或 120 秒超时都会终止等待中的操作。条件式请求、不支持的
+算法/参数、未启用网站或用户选择系统验证器时回退到 Chrome 原生实现。
 
-## 商店版兼容路径
+## 兼容策略
 
-商店版不申请 `webAuthenticationProxy`。`amazon.com` 及其 HTTPS 子域通过页面桥接
-返回恢复后的 `PublicKeyCredential` 对象；对象保留浏览器原型，并实现
-`toJSON()`、`getClientExtensionResults()` 以及注册响应的公钥和传输方式方法。
+商店版不申请 `webAuthenticationProxy`，而是在受支持页面加载初期桥接 WebAuthn。
+恢复后的对象保留浏览器原型，并实现 `toJSON()`、`getClientExtensionResults()` 以及
+注册响应所需的公钥与传输方式方法。
 
-Amazon 真实账户已人工验证通行密钥创建和登录；不支持的参数、非 Amazon 网站、
-条件式请求或用户选择系统验证器时，会调用 Chrome 原生方法。
+协议版本保持 `v1`，以兼容已发布版本。扩展的产品名称或保险库数据模型变化不改变
+页面消息格式。

@@ -1,6 +1,6 @@
 {
   "name": "diyvm-local-passkey",
-  "version": "0.4.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspace @diyvm/local-passkey-extension",
+    "build:store": "npm run build:store --workspace @diyvm/local-passkey-extension",
     "check": "npm run check --workspace @diyvm/local-passkey-extension",
     "test": "node --import tsx --test extension/test/*.test.ts",
     "test:pure": "npm run check && npm test && npm run build"
