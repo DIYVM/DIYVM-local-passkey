@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "DIYVM Local Vault",
+  "name": "DIYVM Local Passkey",
   "version": "1.0.0",
   "description": "Stores and uses encrypted local passwords and passkeys entirely inside Chrome.",
   "minimum_chrome_version": "120",
@@ -72,7 +72,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "DIYVM Local Vault",
+    "default_title": "DIYVM Local Passkey",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

@@ -867,7 +867,7 @@ function bridgeErrorFromException(
   return bridgeError(
     requestId,
     "INTERNAL_ERROR",
-    `DIYVM Local Vault 生成凭据失败：${errorMessage(error)}`
+    `DIYVM Local Passkey 生成凭据失败：${errorMessage(error)}`
   );
 }
 

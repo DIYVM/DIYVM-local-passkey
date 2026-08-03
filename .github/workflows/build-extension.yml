@@ -1,4 +1,4 @@
-name: Build and Release DIYVM Local Vault
+name: Build and Release DIYVM Local Passkey
 
 on:
   push:
@@ -67,7 +67,7 @@ jobs:
               `Version mismatch: root=${rootPackage.version}, extension=${extensionPackage.version}, manifest=${manifest.version}`
             );
           }
-          if (manifest.name !== "DIYVM Local Vault") {
+          if (manifest.name !== "DIYVM Local Passkey") {
             throw new Error(`Unexpected extension name: ${manifest.name}`);
           }
           if (Object.prototype.hasOwnProperty.call(manifest, "key")) {
@@ -85,7 +85,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./extension/package.json').version")"
-          ARCHIVE="DIYVM-Local-Vault-Chrome-Web-Store-${VERSION}.zip"
+          ARCHIVE="DIYVM-Local-Passkey-Chrome-Web-Store-${VERSION}.zip"
           mkdir -p artifacts
           (
             cd extension/dist
@@ -108,7 +108,7 @@ jobs:
       - name: Upload tested Chrome Web Store package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: DIYVM-Local-Vault-Chrome-Web-Store-${{ steps.package.outputs.version }}
+          name: DIYVM-Local-Passkey-Chrome-Web-Store-${{ steps.package.outputs.version }}
           path: |
             artifacts/${{ steps.package.outputs.archive }}
             artifacts/${{ steps.package.outputs.archive }}.sha256
@@ -145,7 +145,7 @@ jobs:
       - name: Download tested package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: DIYVM-Local-Vault-Chrome-Web-Store-${{ needs.build-extension.outputs.version }}
+          name: DIYVM-Local-Passkey-Chrome-Web-Store-${{ needs.build-extension.outputs.version }}
           path: release-assets
 
       - name: Verify release files
@@ -176,5 +176,5 @@ jobs:
             "release-assets/${ARCHIVE}" \
             "release-assets/${ARCHIVE}.sha256" \
             --verify-tag \
-            --title "DIYVM Local Vault ${VERSION}" \
+            --title "DIYVM Local Passkey ${VERSION}" \
             --generate-notes

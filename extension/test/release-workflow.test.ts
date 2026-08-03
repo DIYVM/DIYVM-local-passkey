@@ -20,14 +20,14 @@ describe("release workflow", () => {
     assert.match(contents, /Chrome Web Store build contains source maps/u);
   });
 
-  it("uses the Local Vault product identity for artifacts and releases", async () => {
+  it("uses the Local Passkey product identity for artifacts and releases", async () => {
     const contents = await workflow();
     assert.match(
       contents,
-      /DIYVM-Local-Vault-Chrome-Web-Store-\$\{VERSION\}\.zip/u
+      /DIYVM-Local-Passkey-Chrome-Web-Store-\$\{VERSION\}\.zip/u
     );
-    assert.match(contents, /DIYVM Local Vault \$\{VERSION\}/u);
-    assert.doesNotMatch(contents, /DIYVM-Local-Passkey-Chrome/u);
+    assert.match(contents, /DIYVM Local Passkey \$\{VERSION\}/u);
+    assert.doesNotMatch(contents, /Local-Vault-Chrome/u);
   });
 
   it("validates metadata, archive layout, checksums, and forbidden files", async () => {

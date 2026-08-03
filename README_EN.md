@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="./extension/src/logo.png" width="112" height="112" alt="DIYVM Local Vault">
-  <h1>DIYVM Local Vault</h1>
+  <img src="./extension/src/logo.png" width="112" height="112" alt="DIYVM Local Passkey">
+  <h1>DIYVM Local Passkey</h1>
   <p>A password and passkey manager that runs entirely inside Chrome.</p>
   <p>
     <img src="https://img.shields.io/badge/version-1.0.0-2458d3?style=flat-square" alt="Version 1.0.0">
@@ -17,7 +17,7 @@
 
 ## Overview
 
-DIYVM Local Vault `1.0.0` expands the original Amazon local-passkey extension into a
+DIYVM Local Passkey `1.0.0` expands the original Amazon local-passkey extension into a
 local password and passkey vault. It requires no account or cloud service. Passwords,
 passkey private keys, and audit events are encrypted before they are stored locally.
 

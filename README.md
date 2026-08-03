@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="./extension/src/logo.png" width="112" height="112" alt="DIYVM Local Vault">
-  <h1>DIYVM Local Vault</h1>
+  <img src="./extension/src/logo.png" width="112" height="112" alt="DIYVM Local Passkey">
+  <h1>DIYVM Local Passkey</h1>
   <p>完全在 Chrome 本地运行的密码与通行密钥管理器。</p>
   <p>
     <img src="https://img.shields.io/badge/version-1.0.0-2458d3?style=flat-square" alt="Version 1.0.0">
@@ -18,7 +18,7 @@
 
 ## 这是什么
 
-DIYVM Local Vault `1.0.0` 把原来的 Amazon 本地通行密钥工具扩展为本地密码与
+DIYVM Local Passkey `1.0.0` 把原来的 Amazon 本地通行密钥工具扩展为本地密码与
 通行密钥保险库。扩展不需要账户或云服务；密码、通行密钥私钥和操作记录均先加密，
 再保存到浏览器本地。
 

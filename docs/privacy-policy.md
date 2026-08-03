@@ -1,11 +1,11 @@
-# DIYVM Local Vault 隐私政策
+# DIYVM Local Passkey 隐私政策
 
 生效日期：2026 年 8 月 3 日
 适用版本：1.0.0 及后续兼容版本
 
 ## 1. 适用范围
 
-本政策适用于 DIYVM Local Vault Chrome 扩展。该扩展的单一用途是：在用户的浏览器
+本政策适用于 DIYVM Local Passkey Chrome 扩展。该扩展的单一用途是：在用户的浏览器
 本地保存、管理并使用密码与通行密钥。
 
 本扩展与 Amazon、Google 或 Chrome 无隶属、授权或代言关系。

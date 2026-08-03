@@ -1,6 +1,6 @@
 # Chrome Web Store 1.0.0 更新提交文案
 
-正式包：`DIYVM-Local-Vault-Chrome-Web-Store-1.0.0.zip`
+正式包：`DIYVM-Local-Passkey-Chrome-Web-Store-1.0.0.zip`
 
 配套图片：`DIYVM-Chrome-Web-Store-Graphics-1.0.0.zip`（3 张 1280×800 截图、
 440×280 小型宣传图和 1400×560 顶部宣传图；均为无透明层的 24 位 PNG）。
@@ -12,7 +12,7 @@
 
 ### 名称
 
-DIYVM Local Vault
+DIYVM Local Passkey
 
 ### 简短说明
 
@@ -20,7 +20,7 @@ DIYVM Local Vault
 
 ### 详细说明
 
-DIYVM Local Vault 是一款不依赖账户或云服务的本地密码与通行密钥管理器。
+DIYVM Local Passkey 是一款不依赖账户或云服务的本地密码与通行密钥管理器。
 
 它将密码和 Amazon 通行密钥保存在同一个加密保险库中。用户可以添加、编辑、搜索、
 收藏、标记和恢复凭据，使用密码生成器，并在本地检查弱密码、重复密码和长期未更新的
@@ -147,7 +147,7 @@ JavaScript、Wasm、动态模块、配置脚本，也不使用 `eval` 或远程 
 
 可直接提交以下内容：
 
-1. 安装扩展并点击工具栏中的 DIYVM Local Vault。
+1. 安装扩展并点击工具栏中的 DIYVM Local Passkey。
 2. 首次使用时输入至少 12 个字符的主密码并创建本地保险库。
 3. 打开任意 HTTPS 登录页，在表单中输入测试用户名和密码，但不要提交。
 4. 回到扩展的“当前页面”，点击“读取当前表单”，保存后点击“填充当前页面”。
@@ -170,7 +170,7 @@ JavaScript、Wasm、动态模块、配置脚本，也不使用 `eval` 或远程 
 
 ## 提交前必须同步
 
-1. 将名称、版本、说明、截图和宣传图更新为 DIYVM Local Vault 1.0.0。
+1. 将名称、版本、说明、截图和宣传图更新为 DIYVM Local Passkey 1.0.0。
 2. 更新公开隐私政策页面。
 3. 在“隐私权”页重新填写单一用途、四项权限理由、主机权限、远程代码和数据类别。
 4. 如果控制台询问权限增加，请如实说明密码管理和逐站点自动填充。
