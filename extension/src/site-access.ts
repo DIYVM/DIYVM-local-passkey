@@ -143,7 +143,7 @@ export async function syncRegisteredContentScripts(
       js: ["password-autofill.js"],
       runAt: "document_idle",
       world: "ISOLATED",
-      allFrames: false,
+      allFrames: true,
       persistAcrossSessions: true
     });
   }

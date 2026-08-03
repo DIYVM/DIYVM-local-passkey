@@ -385,16 +385,68 @@ async function fillPasswordInActiveTab(
       `该密码只允许填入 ${credential.origin}`
     );
   }
+  const inspections = await inspectLoginFrames(tab.id, credential.origin);
+  const target = inspections
+    .filter(
+      (inspection) =>
+        inspection.result?.ok &&
+        inspection.result.targetScore !== undefined
+    )
+    .sort((left, right) => {
+      const focusDifference =
+        Number(right.result?.focusedTarget) -
+        Number(left.result?.focusedTarget);
+      if (focusDifference !== 0) {
+        return focusDifference;
+      }
+      return (
+        (right.result?.targetScore ?? Number.NEGATIVE_INFINITY) -
+        (left.result?.targetScore ?? Number.NEGATIVE_INFINITY)
+      );
+    })[0];
+  if (!target) {
+    const message =
+      inspections.find((inspection) => inspection.frameId === 0)?.result
+        ?.message ?? "当前页面没有可填写的登录输入框";
+    throw new PureExtensionError("NOT_ALLOWED", message);
+  }
   const results = await chrome.scripting.executeScript({
-    target: { tabId: tab.id, frameIds: [0] },
+    target: { tabId: tab.id, frameIds: [target.frameId] },
     func: fillPasswordInPage,
-    args: [credential.username, credential.password]
+    args: [
+      credential.username,
+      credential.password,
+      credential.origin,
+      false
+    ]
   });
   const result = results[0]?.result as PasswordFillResult | undefined;
   if (!result) {
     throw new PureExtensionError("INTERNAL_ERROR", "页面未返回填充结果");
   }
+  if (!result.ok) {
+    throw new PureExtensionError("NOT_ALLOWED", result.message);
+  }
   return result;
+}
+
+async function inspectLoginFrames(
+  tabId: number,
+  expectedOrigin: string
+): Promise<Array<chrome.scripting.InjectionResult<PasswordFillResult>>> {
+  try {
+    return await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: fillPasswordInPage,
+      args: ["", "", expectedOrigin, true]
+    });
+  } catch {
+    return chrome.scripting.executeScript({
+      target: { tabId, frameIds: [0] },
+      func: fillPasswordInPage,
+      args: ["", "", expectedOrigin, true]
+    });
+  }
 }
 
 async function captureLoginFromActiveTab(): Promise<CapturedLoginForm> {
@@ -412,12 +464,37 @@ async function captureLoginFromActiveTab(): Promise<CapturedLoginForm> {
       "只允许从 HTTPS 页面读取用户主动选择的登录表单"
     );
   }
-  const results = await chrome.scripting.executeScript({
-    target: { tabId: tab.id, frameIds: [0] },
-    func: captureLoginFormInPage
-  });
-  const captured = results[0]?.result as CapturedLoginForm | undefined;
-  if (!captured || captured.origin !== url.origin) {
+  let results: Array<chrome.scripting.InjectionResult<
+    CapturedLoginForm | undefined
+  >>;
+  try {
+    results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      func: captureLoginFormInPage,
+      args: [url.origin]
+    });
+  } catch {
+    results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, frameIds: [0] },
+      func: captureLoginFormInPage,
+      args: [url.origin]
+    });
+  }
+  const captured = results
+    .filter((result) => result.result?.origin === url.origin)
+    .sort((left, right) => {
+      const focusDifference =
+        Number(right.result?.focusedTarget) -
+        Number(left.result?.focusedTarget);
+      if (focusDifference !== 0) {
+        return focusDifference;
+      }
+      return (
+        (right.result?.targetScore ?? Number.NEGATIVE_INFINITY) -
+        (left.result?.targetScore ?? Number.NEGATIVE_INFINITY)
+      );
+    })[0]?.result;
+  if (!captured) {
     throw new PureExtensionError(
       "NOT_ALLOWED",
       "当前页面没有已填写的登录表单"

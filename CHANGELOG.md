@@ -9,6 +9,7 @@
   and permanent deletion.
 - Cryptographically secure password generator and local weak, reused, and stale-password checks.
 - User-initiated current-page capture and fill through `activeTab`, without automatic submission.
+- Login-dialog targeting, open Shadow DOM discovery, same-origin iframe support, and username-first multi-step filling.
 - Optional persistent autofill granted one exact HTTPS origin at a time.
 - Optional support for 22 additional Amazon marketplaces, bringing the total to 23.
 - Configurable 5, 15, 30, or 60 minute automatic locking.

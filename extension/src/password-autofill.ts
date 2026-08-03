@@ -12,7 +12,7 @@ type AutoFillResponse =
       error: string;
     };
 
-if (window.top === window && location.protocol === "https:") {
+if (location.protocol === "https:") {
   let requested = false;
   let observer: MutationObserver | undefined;
   const requestWhenReady = (): void => {

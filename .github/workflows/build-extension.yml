@@ -1,4 +1,4 @@
-name: Build and Release Chrome Extension
+name: Build and Release DIYVM Local Vault
 
 on:
   push:
@@ -46,34 +46,69 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build extension
-        run: npm run build
+      - name: Build Chrome Web Store package
+        run: npm run build:store
 
-      - name: Create installable ZIP
+      - name: Validate extension metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=commonjs <<'NODE'
+          const rootPackage = require("./package.json");
+          const extensionPackage = require("./extension/package.json");
+          const manifest = require("./extension/dist/manifest.json");
+          const versions = new Set([
+            rootPackage.version,
+            extensionPackage.version,
+            manifest.version
+          ]);
+          if (versions.size !== 1) {
+            throw new Error(
+              `Version mismatch: root=${rootPackage.version}, extension=${extensionPackage.version}, manifest=${manifest.version}`
+            );
+          }
+          if (manifest.name !== "DIYVM Local Vault") {
+            throw new Error(`Unexpected extension name: ${manifest.name}`);
+          }
+          if (Object.prototype.hasOwnProperty.call(manifest, "key")) {
+            throw new Error("Store manifest must not contain a key");
+          }
+          NODE
+          if find extension/dist -type f -name "*.map" -print -quit | grep -q .; then
+            echo "::error::Chrome Web Store build contains source maps"
+            exit 1
+          fi
+
+      - name: Create Chrome Web Store ZIP
         id: package
         shell: bash
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./extension/package.json').version")"
-          ARCHIVE="DIYVM-Local-Passkey-Chrome-${VERSION}.zip"
+          ARCHIVE="DIYVM-Local-Vault-Chrome-Web-Store-${VERSION}.zip"
           mkdir -p artifacts
           (
             cd extension/dist
-            zip -q -r "../../artifacts/${ARCHIVE}" .
+            zip -q -X -r "../../artifacts/${ARCHIVE}" .
           )
           (
             cd artifacts
             sha256sum "${ARCHIVE}" > "${ARCHIVE}.sha256"
           )
           unzip -tq "artifacts/${ARCHIVE}"
-          unzip -Z1 "artifacts/${ARCHIVE}" | grep -qx "manifest.json"
+          test "$(unzip -Z1 "artifacts/${ARCHIVE}" | grep -cx "manifest.json")" -eq 1
+          if unzip -Z1 "artifacts/${ARCHIVE}" | grep -Eiq \
+            '(^|/)(node_modules|src|test)/|\.map$|\.ts$|(^|/)\.env|(^|/).*\.(key|pem|pfx|p12|db|sqlite|sqlite3)$'; then
+            echo "::error::Store archive contains source, test, source-map, database, environment, or key files"
+            exit 1
+          fi
           echo "archive=${ARCHIVE}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload Chrome extension
+      - name: Upload tested Chrome Web Store package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: DIYVM-Local-Passkey-Chrome-${{ steps.package.outputs.version }}
+          name: DIYVM-Local-Vault-Chrome-Web-Store-${{ steps.package.outputs.version }}
           path: |
             artifacts/${{ steps.package.outputs.archive }}
             artifacts/${{ steps.package.outputs.archive }}.sha256
@@ -110,7 +145,7 @@ jobs:
       - name: Download tested package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: DIYVM-Local-Passkey-Chrome-${{ needs.build-extension.outputs.version }}
+          name: DIYVM-Local-Vault-Chrome-Web-Store-${{ needs.build-extension.outputs.version }}
           path: release-assets
 
       - name: Verify release files
@@ -124,7 +159,12 @@ jobs:
             sha256sum -c "${ARCHIVE}.sha256"
           )
           unzip -tq "release-assets/${ARCHIVE}"
-          unzip -Z1 "release-assets/${ARCHIVE}" | grep -qx "manifest.json"
+          test "$(unzip -Z1 "release-assets/${ARCHIVE}" | grep -cx "manifest.json")" -eq 1
+          if unzip -Z1 "release-assets/${ARCHIVE}" | grep -Eiq \
+            '(^|/)(node_modules|src|test)/|\.map$|\.ts$|(^|/)\.env|(^|/).*\.(key|pem|pfx|p12|db|sqlite|sqlite3)$'; then
+            echo "::error::Release archive contains forbidden files"
+            exit 1
+          fi
 
       - name: Create GitHub Release
         env:
@@ -136,5 +176,5 @@ jobs:
             "release-assets/${ARCHIVE}" \
             "release-assets/${ARCHIVE}.sha256" \
             --verify-tag \
-            --title "DIYVM Local Passkey ${VERSION}" \
+            --title "DIYVM Local Vault ${VERSION}" \
             --generate-notes

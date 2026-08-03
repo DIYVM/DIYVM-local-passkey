@@ -29,6 +29,7 @@ unlock. Existing passkeys do not need to be recreated.
 - One encrypted vault for passwords and ES256 passkeys.
 - Passkey creation and sign-in on the major Amazon marketplaces worldwide.
 - User-initiated password matching and filling for the current page, without form submission.
+- Prioritizes the active login dialog and supports same-origin iframes, open Shadow DOM, and multi-step sign-in.
 - Optional persistent autofill that the user grants one HTTPS origin at a time.
 - Add, edit, search, favorite, tag, annotate, rename, trash, restore, and permanently delete.
 - Configurable password generator and local weak, reused, and stale-password checks.
