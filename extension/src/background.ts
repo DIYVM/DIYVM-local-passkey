@@ -1,6 +1,8 @@
 import type {
   CredentialSummary,
   ExtensionErrorCode,
+  OssConfigurationSummary,
+  OssRemoteBackupInfo,
   PasswordDetails,
   PasswordInput,
   PasswordSummary,
@@ -39,6 +41,20 @@ import {
 import { syncRegisteredContentScripts } from "./site-access";
 import { SoftwareAuthenticator } from "./software-authenticator";
 import { ChromeVaultSettingsStorage } from "./vault-settings";
+import {
+  AliyunOssClient,
+  isOssConfigurationInput,
+  normalizeOssConfiguration,
+  ossPermissionPattern,
+  type OssConfiguration,
+  type OssConfigurationInput
+} from "./oss-client";
+import {
+  exportVaultBackup,
+  importVaultBackup,
+  MAX_VAULT_BACKUP_BYTES,
+  verifyVaultBackup
+} from "./vault-backup";
 
 const extensionVersion = chrome.runtime.getManifest().version;
 const CONFIRMATION_TIMEOUT_MS = 120_000;
@@ -49,6 +65,7 @@ interface ExtensionStatus extends VaultStatus {
   platform: "Chrome Extension";
   credentialCount: number;
   currentOrigin: string | null;
+  ossConfiguration: OssConfigurationSummary | null;
 }
 
 type PopupRequest =
@@ -92,7 +109,18 @@ type PopupRequest =
       settings: Partial<VaultSettings>;
     }
   | {
-      type: "captureLoginForm" | "syncSiteAccess" | "recordBackupExport";
+      type: "configureOss";
+      configuration: OssConfigurationInput;
+    }
+  | {
+      type:
+        | "captureLoginForm"
+        | "syncSiteAccess"
+        | "recordBackupExport"
+        | "uploadOssBackup"
+        | "inspectOssBackup"
+        | "restoreOssBackup"
+        | "disconnectOss";
     };
 
 type PopupResponse =
@@ -105,6 +133,7 @@ type PopupResponse =
       passwordDetails?: PasswordDetails;
       capturedLogin?: CapturedLoginForm;
       fillResult?: PasswordFillResult;
+      ossRemoteBackupInfo?: OssRemoteBackupInfo;
     }
   | {
       ok: false;
@@ -219,6 +248,7 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
     let passwordDetails: PasswordDetails | undefined;
     let capturedLogin: CapturedLoginForm | undefined;
     let fillResult: PasswordFillResult | undefined;
+    let ossRemoteBackupInfo: OssRemoteBackupInfo | undefined;
 
     if (message.type === "initializeVault") {
       await opened.vault.initialize(message.masterPassword);
@@ -296,6 +326,45 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
         await opened.vault.recordAudit("backup-exported", "vault");
       }
       await syncRegisteredContentScripts(settings);
+    } else if (message.type === "configureOss") {
+      const configuration = normalizeOssConfiguration(message.configuration);
+      await requireOssPermission(configuration);
+      await new AliyunOssClient(configuration).inspectObject();
+      const previous = await opened.vault.readOssConfiguration();
+      await opened.vault.saveOssConfiguration(configuration);
+      if (
+        previous &&
+        ossPermissionPattern(previous) !== ossPermissionPattern(configuration)
+      ) {
+        await removeUnusedOssPermission(previous);
+      }
+    } else if (message.type === "uploadOssBackup") {
+      const configuration = await requireStoredOssConfiguration(opened.vault);
+      await requireOssPermission(configuration);
+      const backup = await exportVaultBackup(opened.store);
+      const uploaded = await new AliyunOssClient(configuration).putObject(backup);
+      const uploadedAt = Date.now();
+      await opened.vault.markOssBackupUploaded(uploadedAt, uploaded.etag);
+      await opened.vault.updateSettings({ lastBackupAt: uploadedAt });
+    } else if (message.type === "inspectOssBackup") {
+      const configuration = await requireStoredOssConfiguration(opened.vault);
+      await requireOssPermission(configuration);
+      const remote = await downloadAndVerifyOssBackup(configuration);
+      ossRemoteBackupInfo = remote.info;
+    } else if (message.type === "restoreOssBackup") {
+      const configuration = await requireStoredOssConfiguration(opened.vault);
+      await requireOssPermission(configuration);
+      const remote = await downloadAndVerifyOssBackup(configuration);
+      ossRemoteBackupInfo = remote.info;
+      await importVaultBackup(opened.store, remote.contents);
+      await opened.vault.lock();
+      await chrome.alarms.clear(AUTO_LOCK_ALARM);
+    } else if (message.type === "disconnectOss") {
+      const configuration = await opened.vault.readOssConfiguration();
+      await opened.vault.removeOssConfiguration();
+      if (configuration) {
+        await removeUnusedOssPermission(configuration);
+      }
     }
 
     const status = await extensionStatus(opened.vault);
@@ -309,7 +378,8 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
       ...snapshot,
       ...(passwordDetails ? { passwordDetails } : {}),
       ...(capturedLogin ? { capturedLogin } : {}),
-      ...(fillResult ? { fillResult } : {})
+      ...(fillResult ? { fillResult } : {}),
+      ...(ossRemoteBackupInfo ? { ossRemoteBackupInfo } : {})
     };
   } catch (error) {
     const status = await extensionStatus(opened.vault).catch(() => undefined);
@@ -336,11 +406,73 @@ async function extensionStatus(
 ): Promise<ExtensionStatus> {
   const status = await vault.status();
   const currentOrigin = await activeTabOrigin();
+  const ossConfiguration =
+    status.vaultState === "unlocked"
+      ? (await vault.ossConfigurationSummary()) ?? null
+      : null;
   return {
     extensionVersion,
     platform: "Chrome Extension",
     ...status,
-    currentOrigin
+    currentOrigin,
+    ossConfiguration
+  };
+}
+
+async function requireStoredOssConfiguration(
+  vault: Awaited<ReturnType<typeof openPureVault>>["vault"]
+): Promise<OssConfiguration> {
+  const configuration = await vault.readOssConfiguration();
+  if (!configuration) {
+    throw new PureExtensionError("INVALID_STATE", "尚未配置阿里云 OSS");
+  }
+  return configuration;
+}
+
+async function requireOssPermission(
+  configuration: OssConfiguration
+): Promise<void> {
+  if (
+    !(await chrome.permissions.contains({
+      origins: [ossPermissionPattern(configuration)]
+    }))
+  ) {
+    throw new PureExtensionError(
+      "PERMISSION_DENIED",
+      "尚未授权访问该 OSS Bucket"
+    );
+  }
+}
+
+async function removeUnusedOssPermission(
+  configuration: OssConfiguration
+): Promise<void> {
+  const origin = new URL(ossPermissionPattern(configuration)).origin;
+  const settings = await new ChromeVaultSettingsStorage().read();
+  if (settings.autoFillOrigins.includes(origin)) {
+    return;
+  }
+  await chrome.permissions.remove({
+    origins: [ossPermissionPattern(configuration)]
+  });
+}
+
+async function downloadAndVerifyOssBackup(
+  configuration: OssConfiguration
+): Promise<{ contents: string; info: OssRemoteBackupInfo }> {
+  const downloaded = await new AliyunOssClient(configuration).getObject(
+    MAX_VAULT_BACKUP_BYTES
+  );
+  const verified = await verifyVaultBackup(downloaded.contents);
+  return {
+    contents: downloaded.contents,
+    info: {
+      ...verified,
+      size: downloaded.info.size,
+      etag: downloaded.info.etag,
+      lastModifiedAt: downloaded.info.lastModifiedAt,
+      versionId: downloaded.info.versionId
+    }
   };
 }
 
@@ -918,9 +1050,16 @@ function isPopupRequest(value: unknown): value is PopupRequest {
     message.type === "lockVault" ||
     message.type === "captureLoginForm" ||
     message.type === "syncSiteAccess" ||
-    message.type === "recordBackupExport"
+    message.type === "recordBackupExport" ||
+    message.type === "uploadOssBackup" ||
+    message.type === "inspectOssBackup" ||
+    message.type === "restoreOssBackup" ||
+    message.type === "disconnectOss"
   ) {
     return true;
+  }
+  if (message.type === "configureOss") {
+    return isOssConfigurationInput(message.configuration);
   }
   if (message.type === "initializeVault" || message.type === "unlockVault") {
     return boundedMasterPassword(message.masterPassword);

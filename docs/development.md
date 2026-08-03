@@ -37,6 +37,7 @@ extension/
     password-model.ts         密码校验、生成和风险检查
     page-password-actions.ts  当前页面一次性捕获/填充
     password-autofill.ts      用户授权 Origin 的持续自动填充
+    oss-client.ts             阿里云 OSS V4 签名、验证与对象读写
     amazon-sites.ts           Amazon 市场清单
     site-access.ts            可选权限和动态脚本
     page-bridge.ts            Amazon 页面主世界 WebAuthn 桥接
@@ -50,8 +51,9 @@ artifacts/                   本地发布产物，Git 忽略
 ## 数据兼容性
 
 IndexedDB 数据库 schema 保持版本 1，以避免破坏旧安装。加密记录在解密后按 `kind`
-区分 `password`、`passkey` 和固定的 `audit-log`。旧通行密钥记录缺少的新 UI 字段会
-在读取时使用安全默认值。
+区分 `password`、`passkey`、固定的 `audit-log` 和可选的 `oss-configuration`。
+OSS AccessKey Secret 不写入普通设置。旧通行密钥记录缺少的新 UI 字段会在读取时
+使用安全默认值。
 
 保险库元数据同时识别旧 `PBKDF2-SHA-256` 与新 `ARGON2ID`。旧保险库只有在主密码
 成功验证后才会重新包装 Vault Key；迁移不会修改通行密钥私钥或凭据 ID。
@@ -68,9 +70,11 @@ IndexedDB 数据库 schema 保持版本 1，以避免破坏旧安装。加密记
 6. 开启某 Origin 自动填充，刷新测试；撤销后确认脚本不再运行。
 7. 逐项开启和关闭至少一个非美国 Amazon 市场权限。
 8. 创建加密备份、验证、导入并确认导入后锁定。
-9. 修改主密码，确认旧密码失败、新密码成功。
-10. 验证 Amazon 通行密钥创建、登录、取消、超时和“改用系统”路径。
-11. 关闭/重启 Chrome 后确认保险库锁定。
+9. 使用专用测试 Bucket 验证 OSS 精确权限、保存并测试连接、上传、检查、恢复和断开；
+   确认锁定后不能执行 OSS 操作，断开后远程对象不被删除。
+10. 修改主密码，确认旧密码失败、新密码成功。
+11. 验证 Amazon 通行密钥创建、登录、取消、超时和“改用系统”路径。
+12. 关闭/重启 Chrome 后确认保险库锁定。
 
 ## 发布检查
 

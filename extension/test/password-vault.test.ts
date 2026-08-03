@@ -14,6 +14,10 @@ import {
   PureVault
 } from "../src/pure-vault";
 import { MemoryVaultSettingsStorage } from "../src/vault-settings";
+import {
+  exportVaultBackup,
+  verifyVaultBackup
+} from "../src/vault-backup";
 
 describe("unified password and passkey vault", () => {
   let databaseName: string;
@@ -97,6 +101,45 @@ describe("unified password and passkey vault", () => {
     await vault.unlock("new correct horse battery staple");
     now += 16 * 60 * 1_000;
     assert.equal((await vault.status()).vaultState, "locked");
+  });
+
+  it("encrypts OSS configuration inside the vault and removes it on disconnect", async () => {
+    const configuration = {
+      endpoint: "https://oss-cn-hangzhou.aliyuncs.com",
+      region: "cn-hangzhou",
+      bucket: "diyvm-backup",
+      objectKey: "diyvm-local-passkey/vault.json",
+      accessKeyId: "LTAIExampleAccessKey",
+      accessKeySecret: "exampleAccessKeySecret123456"
+    };
+    const summary = await vault.saveOssConfiguration(configuration);
+    assert.equal(summary.bucket, "diyvm-backup");
+    assert.equal(
+      (await vault.readOssConfiguration())?.accessKeySecret,
+      configuration.accessKeySecret
+    );
+
+    const snapshot = await store.exportSnapshot();
+    assert(snapshot);
+    assert(
+      snapshot.credentials.some(
+        (record) => record.credentialId === "DIYVM_OSS_CONFIG_V1"
+      )
+    );
+    assert.doesNotMatch(
+      JSON.stringify(snapshot),
+      /exampleAccessKeySecret123456/u
+    );
+    const backup = await exportVaultBackup(store);
+    assert.doesNotMatch(backup, /exampleAccessKeySecret123456/u);
+    assert.equal((await verifyVaultBackup(backup)).itemCount, 0);
+
+    now += 1_000;
+    const uploaded = await vault.markOssBackupUploaded(now, "\"etag-value\"");
+    assert.equal(uploaded.lastUploadedAt, now);
+    assert.equal(uploaded.lastEtag, "\"etag-value\"");
+    assert.equal(await vault.removeOssConfiguration(), true);
+    assert.equal(await vault.readOssConfiguration(), undefined);
   });
 });
 

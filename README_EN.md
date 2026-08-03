@@ -1,9 +1,9 @@
 <div align="center">
   <img src="./extension/src/logo.png" width="112" height="112" alt="DIYVM Local Passkey">
   <h1>DIYVM Local Passkey</h1>
-  <p>A password and passkey manager that runs entirely inside Chrome.</p>
+  <p>A local-first password and passkey manager with optional backup to user-owned OSS.</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.0.0-2458d3?style=flat-square" alt="Version 1.0.0">
+    <img src="https://img.shields.io/badge/version-1.1.0-2458d3?style=flat-square" alt="Version 1.1.0">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
@@ -17,9 +17,11 @@
 
 ## Overview
 
-DIYVM Local Passkey `1.0.0` expands the original Amazon local-passkey extension into a
-local password and passkey vault. It requires no account or cloud service. Passwords,
-passkey private keys, and audit events are encrypted before they are stored locally.
+DIYVM Local Passkey `1.1.0` expands the original Amazon local-passkey extension into a
+local password and passkey vault. It requires no DIYVM account or developer-operated
+server. Passwords, passkey private keys, and audit events are encrypted before local
+storage. Users may also manually upload the complete encrypted backup to their own
+Alibaba Cloud OSS bucket.
 
 An existing `0.4.x` vault migrates its key-derivation metadata after the first successful
 unlock. Existing passkeys do not need to be recreated.
@@ -35,6 +37,7 @@ unlock. Existing passkeys do not need to be recreated.
 - Configurable password generator and local weak, reused, and stale-password checks.
 - Automatic locking after 5, 15, 30, or 60 minutes.
 - Encrypted backup, structural verification, full restore, and master-password change.
+- Optional manual encrypted backup to user-owned Alibaba Cloud OSS, without a DIYVM server.
 - Encrypted local audit history that never contains plaintext passwords.
 
 ## Security model
@@ -62,10 +65,10 @@ See [Security Boundary](./docs/security-boundary.md) for the threat model and li
 | `alarms` | Locks the vault after the selected inactivity period |
 | Required `amazon.com` hosts | Preserves the original Amazon US passkey workflow |
 | Optional Amazon hosts | Requested only when the user enables a marketplace |
-| Optional HTTPS hosts | Requested for one exact origin only when persistent autofill is enabled |
+| Optional HTTPS hosts | Requested for one exact origin when persistent autofill or a user-owned OSS bucket is enabled |
 
 Click-to-fill does not need persistent site access. The `https://*/*` optional pattern only
-allows Chrome to display a per-site permission prompt for the specific origin selected by
+allows Chrome to display a permission prompt for the exact site or OSS bucket selected by
 the user; the extension never requests all sites at once.
 
 ## Supported Amazon marketplaces
@@ -93,20 +96,21 @@ npm run build:store
 
 ## Version 1.0 limitations
 
-- No cloud sync, shared vaults, payment cards, or identity-profile autofill.
+- No multi-device bidirectional sync, shared vaults, payment cards, or identity-profile autofill.
 - A software passkey is not isolated as strongly as a TPM, Secure Enclave, or hardware key.
 - Once a password is filled, scripts belonging to that page may read the input value.
   Fill credentials only on trusted sites whose domain is correct.
 - The project has automated tests and a code-level security review, but it does not claim
   an independent third-party security audit.
-- A previously approved Chrome Web Store version and the `1.0.0` update are separate review
+- A previously approved Chrome Web Store version and the `1.1.0` update are separate review
   submissions. Google must review the update after it is uploaded.
 
 ## Privacy
 
-The extension has no analytics or advertising and does not sell or transmit user data.
-Uninstalling it deletes Chrome-managed extension data. Exported backup files must be
-deleted by the user. See the [Privacy Policy](./docs/privacy-policy.md).
+The extension has no analytics or advertising, does not sell data, and sends no vault data
+to DIYVM servers. Only after explicit opt-in is the complete encrypted backup sent to the
+user-configured Alibaba Cloud OSS bucket. Uninstalling the extension does not delete backup
+files from disk or OSS. See the [Privacy Policy](./docs/privacy-policy.md).
 
 ## License
 

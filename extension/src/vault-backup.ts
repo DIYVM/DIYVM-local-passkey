@@ -12,6 +12,7 @@ export const VAULT_BACKUP_VERSION = 2 as const;
 export const MAX_VAULT_BACKUP_BYTES = 20 * 1024 * 1024;
 const LEGACY_BACKUP_VERSION = 1 as const;
 const AUDIT_LOG_ID = "DIYVM_AUDIT_LOG_V1";
+const OSS_CONFIGURATION_ID = "DIYVM_OSS_CONFIG_V1";
 
 interface SerializedVaultMetadata {
   schemaVersion: typeof VAULT_SCHEMA_VERSION;
@@ -451,6 +452,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function countUserItems(snapshot: VaultSnapshot): number {
   return snapshot.credentials.filter(
-    (credential) => credential.credentialId !== AUDIT_LOG_ID
+    (credential) =>
+      credential.credentialId !== AUDIT_LOG_ID &&
+      credential.credentialId !== OSS_CONFIGURATION_ID
   ).length;
 }

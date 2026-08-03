@@ -28,7 +28,7 @@ describe("pure extension manifest", () => {
   it("uses the production identity and required local-vault permissions", async () => {
     const manifest = await readManifest();
     assert.equal(manifest.name, "DIYVM Local Passkey");
-    assert.equal(manifest.version, "1.0.0");
+    assert.equal(manifest.version, "1.1.0");
     assert.equal(manifest.key, undefined);
     assert.deepEqual(manifest.permissions, [
       "storage",
@@ -46,7 +46,7 @@ describe("pure extension manifest", () => {
     ]);
   });
 
-  it("keeps global Amazon and persistent autofill access optional", async () => {
+  it("keeps global Amazon, autofill, and user-owned OSS access optional", async () => {
     const manifest = await readManifest();
     assert(manifest.optional_host_permissions?.includes(
       "https://amazon.co.jp/*"

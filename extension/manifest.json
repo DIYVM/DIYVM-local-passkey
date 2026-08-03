@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "DIYVM Local Passkey",
-  "version": "1.0.0",
-  "description": "Stores and uses encrypted local passwords and passkeys entirely inside Chrome.",
+  "version": "1.1.0",
+  "description": "Stores encrypted local passwords and passkeys, with optional backup to user-configured Alibaba Cloud OSS.",
   "minimum_chrome_version": "120",
   "permissions": [
     "storage",

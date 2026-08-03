@@ -1,5 +1,7 @@
 import type {
   CredentialSummary,
+  OssConfigurationSummary,
+  OssRemoteBackupInfo,
   PasswordDetails,
   PasswordInput,
   PasswordSummary,
@@ -34,12 +36,18 @@ import {
   requestAmazonRegion,
   requestAutoFillOrigin
 } from "./site-access";
+import {
+  normalizeOssConfiguration,
+  ossPermissionPattern,
+  type OssConfigurationInput
+} from "./oss-client";
 
 interface ExtensionStatus extends VaultStatus {
   extensionVersion: string;
   platform: "Chrome Extension";
   credentialCount: number;
   currentOrigin: string | null;
+  ossConfiguration: OssConfigurationSummary | null;
 }
 
 type PopupRequest =
@@ -77,7 +85,18 @@ type PopupRequest =
       settings: Partial<VaultSettings>;
     }
   | {
-      type: "captureLoginForm" | "syncSiteAccess" | "recordBackupExport";
+      type: "configureOss";
+      configuration: OssConfigurationInput;
+    }
+  | {
+      type:
+        | "captureLoginForm"
+        | "syncSiteAccess"
+        | "recordBackupExport"
+        | "uploadOssBackup"
+        | "inspectOssBackup"
+        | "restoreOssBackup"
+        | "disconnectOss";
     };
 
 type PopupResponse =
@@ -100,6 +119,7 @@ type PopupResponse =
         passwordFilled: boolean;
         message: string;
       };
+      ossRemoteBackupInfo?: OssRemoteBackupInfo;
     }
   | {
       ok: false;
@@ -159,6 +179,20 @@ const elements = {
   addAutoFillOriginForm: requireForm("add-autofill-origin-form"),
   autoFillOrigin: requireInput("autofill-origin"),
   autoFillOriginList: requireElement("autofill-origin-list"),
+  ossForm: requireForm("oss-form"),
+  ossEndpoint: requireInput("oss-endpoint"),
+  ossRegion: requireInput("oss-region"),
+  ossBucket: requireInput("oss-bucket"),
+  ossObjectKey: requireInput("oss-object-key"),
+  ossAccessKeyId: requireInput("oss-access-key-id"),
+  ossAccessKeySecret: requireInput("oss-access-key-secret"),
+  ossConsent: requireInput("oss-consent"),
+  ossUpload: requireButton("oss-upload"),
+  ossInspect: requireButton("oss-inspect"),
+  ossRestore: requireButton("oss-restore"),
+  ossDisconnect: requireButton("oss-disconnect"),
+  ossSummary: requireElement("oss-summary"),
+  ossStatus: requireElement("oss-status"),
   operationStatus: requireElement("operation-status"),
   passwordDialog: requireDialog("password-dialog"),
   passwordForm: requireForm("password-form"),
@@ -284,6 +318,22 @@ elements.addAutoFillOriginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   void addAutoFillOrigin();
 });
+elements.ossForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void configureOss();
+});
+elements.ossUpload.addEventListener("click", () => {
+  void uploadOssBackup();
+});
+elements.ossInspect.addEventListener("click", () => {
+  void inspectOssBackup();
+});
+elements.ossRestore.addEventListener("click", () => {
+  void restoreOssBackup();
+});
+elements.ossDisconnect.addEventListener("click", () => {
+  void disconnectOss();
+});
 
 void sendPopupRequest(
   { type: "getExtensionStatus" },
@@ -390,6 +440,7 @@ function renderAll(): void {
   renderAuditLog();
   renderAmazonRegions();
   renderAutoFillOrigins();
+  renderOssConfiguration();
 }
 
 function renderQuickPasswords(): void {
@@ -601,7 +652,10 @@ function renderAuditLog(): void {
     "item-restored": "恢复凭据",
     "item-deleted": "永久删除凭据",
     "backup-exported": "导出备份",
-    "backup-imported": "导入备份"
+    "backup-imported": "导入备份",
+    "oss-connected": "连接阿里云 OSS",
+    "oss-backup-uploaded": "上传 OSS 备份",
+    "oss-disconnected": "断开阿里云 OSS"
   };
   for (const entry of auditEntries.slice(0, 100)) {
     const item = document.createElement("li");
@@ -867,6 +921,215 @@ async function revokeAutoFillOrigin(origin: string): Promise<void> {
   await updateSettings({ autoFillOrigins: origins });
 }
 
+function renderOssConfiguration(): void {
+  const configuration = currentStatus?.ossConfiguration ?? null;
+  const editing = elements.ossForm.contains(document.activeElement);
+  if (!editing) {
+    if (configuration) {
+      elements.ossEndpoint.value = configuration.endpoint;
+      elements.ossRegion.value = configuration.region;
+      elements.ossBucket.value = configuration.bucket;
+      elements.ossObjectKey.value = configuration.objectKey;
+      elements.ossAccessKeyId.value = configuration.accessKeyId;
+      elements.ossConsent.checked = true;
+    } else {
+      elements.ossEndpoint.value =
+        "https://oss-cn-hangzhou.aliyuncs.com";
+      elements.ossRegion.value = "cn-hangzhou";
+      elements.ossBucket.value = "";
+      elements.ossObjectKey.value =
+        "diyvm-local-passkey/vault-backup.json";
+      elements.ossAccessKeyId.value = "";
+      elements.ossConsent.checked = false;
+    }
+    elements.ossAccessKeySecret.value = "";
+  }
+  if (!configuration) {
+    elements.ossSummary.textContent = "用户自有阿里云 OSS（未连接）";
+    setOssStatus("尚未连接用户自有 OSS。");
+    return;
+  }
+  elements.ossSummary.textContent =
+    `用户自有阿里云 OSS（${configuration.bucket}）`;
+  const uploaded =
+    configuration.lastUploadedAt === null
+      ? "尚未上传"
+      : `上次上传 ${formatMillisecondDate(configuration.lastUploadedAt)}`;
+  setOssStatus(
+    `已连接 ${configuration.bucket} · ${configuration.objectKey} · ${uploaded}`,
+    "success"
+  );
+}
+
+async function configureOss(): Promise<void> {
+  if (!elements.ossConsent.checked) {
+    setOssStatus(
+      "请先确认仅向你配置的 OSS 发送加密备份。",
+      "error"
+    );
+    return;
+  }
+  let configuration: OssConfigurationInput;
+  try {
+    configuration = normalizeOssConfiguration({
+      endpoint: elements.ossEndpoint.value,
+      region: elements.ossRegion.value,
+      bucket: elements.ossBucket.value,
+      objectKey: elements.ossObjectKey.value,
+      accessKeyId: elements.ossAccessKeyId.value,
+      accessKeySecret: elements.ossAccessKeySecret.value
+    });
+  } catch (error) {
+    setOssStatus(errorMessage(error), "error");
+    return;
+  }
+
+  let granted = false;
+  setBusy(true);
+  setOssStatus("正在请求该 OSS Bucket 的精确访问权限…");
+  try {
+    granted = await chrome.permissions.request({
+      origins: [ossPermissionPattern(configuration)]
+    });
+  } catch (error) {
+    setOssStatus(`权限请求失败：${errorMessage(error)}`, "error");
+  } finally {
+    setBusy(false);
+  }
+  if (!granted) {
+    elements.ossAccessKeySecret.value = "";
+    setOssStatus("未获得 OSS 访问权限，配置没有保存。", "error");
+    return;
+  }
+
+  const response = await sendPopupRequest(
+    { type: "configureOss", configuration },
+    "正在测试并加密保存 OSS 配置"
+  );
+  elements.ossAccessKeySecret.value = "";
+  if (response?.ok) {
+    setOssStatus(
+      "OSS 连接测试成功；AccessKey Secret 已加密保存在本地 Vault。",
+      "success"
+    );
+  } else {
+    const previous = currentStatus?.ossConfiguration;
+    if (
+      !previous ||
+      ossPermissionPattern(previous) !== ossPermissionPattern(configuration)
+    ) {
+      await chrome.permissions.remove({
+        origins: [ossPermissionPattern(configuration)]
+      }).catch(() => false);
+    }
+    setOssStatus(
+      response?.error ?? "OSS 连接测试失败，配置没有保存。",
+      "error"
+    );
+  }
+}
+
+async function uploadOssBackup(): Promise<void> {
+  if (!currentStatus?.ossConfiguration) {
+    setOssStatus("请先保存并测试 OSS 配置。", "error");
+    return;
+  }
+  if (
+    !window.confirm(
+      "上传会写入配置的固定对象路径；如果 Bucket 未开启版本控制，现有同名备份会被覆盖。是否继续？"
+    )
+  ) {
+    return;
+  }
+  setOssStatus("正在生成并上传加密备份…");
+  const response = await sendPopupRequest(
+    { type: "uploadOssBackup" },
+    "正在上传加密 OSS 备份"
+  );
+  if (response?.ok) {
+    setOssStatus(
+      "加密备份已上传。建议在 OSS Bucket 中开启版本控制。",
+      "success"
+    );
+  }
+}
+
+async function inspectOssBackup(): Promise<OssRemoteBackupInfo | undefined> {
+  if (!currentStatus?.ossConfiguration) {
+    setOssStatus("请先保存并测试 OSS 配置。", "error");
+    return undefined;
+  }
+  setOssStatus("正在下载并验证远程加密备份…");
+  const response = await sendPopupRequest(
+    { type: "inspectOssBackup" },
+    "正在检查远程 OSS 备份"
+  );
+  if (!response?.ok || !response.ossRemoteBackupInfo) {
+    return undefined;
+  }
+  setOssStatus(formatOssBackupInfo(response.ossRemoteBackupInfo), "success");
+  return response.ossRemoteBackupInfo;
+}
+
+async function restoreOssBackup(): Promise<void> {
+  const info = await inspectOssBackup();
+  if (!info) {
+    return;
+  }
+  if (
+    !window.confirm(
+      `远程备份包含 ${info.itemCount} 个凭据，导出于 ${
+        formatMillisecondDate(new Date(info.exportedAt).getTime())
+      }。恢复会完整替换当前 Vault，是否继续？`
+    )
+  ) {
+    return;
+  }
+  const response = await sendPopupRequest(
+    { type: "restoreOssBackup" },
+    "正在恢复远程 OSS 备份"
+  );
+  if (response?.ok && response.ossRemoteBackupInfo) {
+    setOperationStatus(
+      `已从 OSS 恢复 ${response.ossRemoteBackupInfo.itemCount} 个凭据，` +
+        "请使用备份对应的主密码解锁。",
+      "success"
+    );
+  }
+}
+
+async function disconnectOss(): Promise<void> {
+  if (!currentStatus?.ossConfiguration) {
+    setOssStatus("当前没有已保存的 OSS 配置。", "error");
+    return;
+  }
+  if (
+    !window.confirm(
+      "断开后会删除 Vault 内的 OSS AccessKey 配置并撤销该 Bucket 权限，远程备份不会被删除。是否继续？"
+    )
+  ) {
+    return;
+  }
+  const response = await sendPopupRequest(
+    { type: "disconnectOss" },
+    "正在断开 OSS 并撤销权限"
+  );
+  if (response?.ok) {
+    setOssStatus("已断开 OSS；远程对象仍由你在 OSS 控制台管理。", "success");
+  }
+}
+
+function formatOssBackupInfo(info: OssRemoteBackupInfo): string {
+  const size = info.size === null ? "大小未知" : formatBytes(info.size);
+  const modified =
+    info.lastModifiedAt === null
+      ? ""
+      : `，OSS 修改于 ${formatMillisecondDate(info.lastModifiedAt)}`;
+  return `远程备份有效：${info.itemCount} 个凭据，${size}，导出于 ${
+    formatMillisecondDate(new Date(info.exportedAt).getTime())
+  }${modified}。`;
+}
+
 async function updateSettings(settings: Partial<VaultSettings>): Promise<void> {
   const response = await sendPopupRequest(
     { type: "updateSettings", settings },
@@ -1083,6 +1346,18 @@ function setBackupStatus(
   }
 }
 
+function setOssStatus(
+  message: string,
+  state?: "success" | "error"
+): void {
+  elements.ossStatus.textContent = message;
+  if (state) {
+    elements.ossStatus.dataset.state = state;
+  } else {
+    delete elements.ossStatus.dataset.state;
+  }
+}
+
 function applyColorScheme(isDark: boolean): void {
   document.documentElement.dataset.theme = isDark ? "dark" : "light";
 }
@@ -1096,6 +1371,16 @@ function formatMillisecondDate(timestamp: number): string {
     dateStyle: "short",
     timeStyle: "short"
   }).format(new Date(timestamp));
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function errorMessage(error: unknown): string {

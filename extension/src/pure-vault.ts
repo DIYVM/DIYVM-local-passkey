@@ -7,6 +7,7 @@ import type {
   PasswordDetails,
   PasswordInput,
   PasswordSummary,
+  OssConfigurationSummary,
   VaultSettings,
   VaultStatus
 } from "./types";
@@ -35,6 +36,10 @@ import {
   type VaultSettingsStorage,
   updateVaultSettings
 } from "./vault-settings";
+import {
+  normalizeOssConfiguration,
+  type OssConfiguration
+} from "./oss-client";
 
 const LEGACY_PBKDF2_ITERATIONS = 600_000;
 const ARGON2_ITERATIONS = 2;
@@ -50,6 +55,7 @@ const RECORD_AAD_PREFIX = "diyvm-local-passkey:credential:v1:";
 const SESSION_KEY = "pureVaultSession";
 const MAX_PASSWORD_HISTORY = 10;
 const AUDIT_LOG_ID = "DIYVM_AUDIT_LOG_V1";
+const OSS_CONFIGURATION_ID = "DIYVM_OSS_CONFIG_V1";
 const MAX_AUDIT_ENTRIES = 500;
 
 export interface StoredSoftwareCredential {
@@ -106,7 +112,10 @@ export type AuditEventType =
   | "item-restored"
   | "item-deleted"
   | "backup-exported"
-  | "backup-imported";
+  | "backup-imported"
+  | "oss-connected"
+  | "oss-backup-uploaded"
+  | "oss-disconnected";
 
 export interface AuditEntry {
   id: string;
@@ -125,10 +134,22 @@ interface StoredAuditLog {
   updatedAt: number;
 }
 
+interface StoredOssConfiguration {
+  schemaVersion: 1;
+  kind: "oss-configuration";
+  credentialId: typeof OSS_CONFIGURATION_ID;
+  configuration: OssConfiguration;
+  lastUploadedAt: number | null;
+  lastEtag: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 type StoredVaultItem =
   | StoredSoftwareCredential
   | StoredPasswordCredential
-  | StoredAuditLog;
+  | StoredAuditLog
+  | StoredOssConfiguration;
 
 interface VaultSession {
   vaultKey: string;
@@ -626,7 +647,7 @@ export class PureVault {
 
   async trashItem(itemId: string): Promise<void> {
     const item = await this.readItem(itemId);
-    if (!item || isAuditLog(item)) {
+    if (!item || (!isPasskey(item) && !isPassword(item))) {
       throw new PureExtensionError(
         "CREDENTIAL_NOT_FOUND",
         "找不到凭据条目"
@@ -644,7 +665,7 @@ export class PureVault {
 
   async restoreItem(itemId: string): Promise<void> {
     const item = await this.readItem(itemId);
-    if (!item || isAuditLog(item)) {
+    if (!item || (!isPasskey(item) && !isPassword(item))) {
       throw new PureExtensionError(
         "CREDENTIAL_NOT_FOUND",
         "找不到凭据条目"
@@ -662,7 +683,7 @@ export class PureVault {
 
   async deleteItemPermanently(itemId: string): Promise<boolean> {
     const item = await this.readItem(itemId);
-    if (!item || isAuditLog(item)) {
+    if (!item || (!isPasskey(item) && !isPassword(item))) {
       return false;
     }
     const deleted = await this.store.deleteCredential(itemId);
@@ -719,6 +740,94 @@ export class PureVault {
   async listAuditEntries(): Promise<AuditEntry[]> {
     const item = await this.readItem(AUDIT_LOG_ID);
     return item && isAuditLog(item) ? [...item.entries].reverse() : [];
+  }
+
+  async readOssConfiguration(): Promise<OssConfiguration | undefined> {
+    const item = await this.readItem(OSS_CONFIGURATION_ID);
+    return item && isOssConfiguration(item)
+      ? { ...item.configuration }
+      : undefined;
+  }
+
+  async ossConfigurationSummary(): Promise<
+    OssConfigurationSummary | undefined
+  > {
+    const item = await this.readItem(OSS_CONFIGURATION_ID);
+    return item && isOssConfiguration(item)
+      ? toOssConfigurationSummary(item)
+      : undefined;
+  }
+
+  async saveOssConfiguration(
+    configuration: OssConfiguration
+  ): Promise<OssConfigurationSummary> {
+    const normalized = normalizeOssConfiguration(configuration);
+    const existing = await this.readItem(OSS_CONFIGURATION_ID);
+    const timestamp = Math.max(
+      this.now(),
+      existing && isOssConfiguration(existing) ? existing.createdAt : 0
+    );
+    const preserveUpload =
+      existing &&
+      isOssConfiguration(existing) &&
+      sameOssTarget(existing.configuration, normalized);
+    const item: StoredOssConfiguration = {
+      schemaVersion: 1,
+      kind: "oss-configuration",
+      credentialId: OSS_CONFIGURATION_ID,
+      configuration: normalized,
+      lastUploadedAt: preserveUpload ? existing.lastUploadedAt : null,
+      lastEtag: preserveUpload ? existing.lastEtag : null,
+      createdAt:
+        existing && isOssConfiguration(existing)
+          ? existing.createdAt
+          : timestamp,
+      updatedAt: timestamp
+    };
+    const key = await this.requireVaultKey();
+    await this.store.writeCredential(await encryptItem(key, item));
+    await this.recordAudit("oss-connected", "vault", normalized.bucket);
+    return toOssConfigurationSummary(item);
+  }
+
+  async markOssBackupUploaded(
+    uploadedAt: number,
+    etag: string | null
+  ): Promise<OssConfigurationSummary> {
+    const item = await this.readItem(OSS_CONFIGURATION_ID);
+    if (!item || !isOssConfiguration(item)) {
+      throw new PureExtensionError(
+        "INVALID_STATE",
+        "尚未配置阿里云 OSS"
+      );
+    }
+    if (
+      !Number.isSafeInteger(uploadedAt) ||
+      uploadedAt < 0
+    ) {
+      throw new TypeError("OSS 上传时间无效");
+    }
+    const timestamp = Math.max(uploadedAt, item.createdAt);
+    item.lastUploadedAt = timestamp;
+    item.lastEtag = normalizeNullableEtag(etag);
+    item.updatedAt = timestamp;
+    const key = await this.requireVaultKey();
+    await this.store.writeCredential(await encryptItem(key, item));
+    await this.recordAudit(
+      "oss-backup-uploaded",
+      "vault",
+      item.configuration.bucket
+    );
+    return toOssConfigurationSummary(item);
+  }
+
+  async removeOssConfiguration(): Promise<boolean> {
+    await this.requireVaultKey();
+    const removed = await this.store.deleteCredential(OSS_CONFIGURATION_ID);
+    if (removed) {
+      await this.recordAudit("oss-disconnected", "vault");
+    }
+    return removed;
   }
 
   private async readItem(itemId: string): Promise<StoredVaultItem | undefined> {
@@ -800,6 +909,7 @@ export class PureVault {
 
 export async function openPureVault(): Promise<{
   vault: PureVault;
+  store: IndexedDbVaultStore;
   close(): void;
 }> {
   const store = await IndexedDbVaultStore.open();
@@ -810,6 +920,7 @@ export async function openPureVault(): Promise<{
       Date.now,
       new ChromeVaultSettingsStorage()
     ),
+    store,
     close: () => store.close()
   };
 }
@@ -1049,6 +1160,9 @@ function normalizeStoredItem(value: unknown): StoredVaultItem {
   if (candidate.kind === "audit-log") {
     return normalizeAuditLog(candidate);
   }
+  if (candidate.kind === "oss-configuration") {
+    return normalizeStoredOssConfiguration(candidate);
+  }
   return normalizePasskey(candidate);
 }
 
@@ -1205,6 +1319,37 @@ function normalizeAuditLog(value: Record<string, unknown>): StoredAuditLog {
   };
 }
 
+function normalizeStoredOssConfiguration(
+  value: Record<string, unknown>
+): StoredOssConfiguration {
+  if (
+    value.schemaVersion !== 1 ||
+    value.kind !== "oss-configuration" ||
+    value.credentialId !== OSS_CONFIGURATION_ID ||
+    typeof value.configuration !== "object" ||
+    value.configuration === null ||
+    !Number.isSafeInteger(value.createdAt) ||
+    !Number.isSafeInteger(value.updatedAt) ||
+    (value.createdAt as number) < 0 ||
+    (value.updatedAt as number) < (value.createdAt as number) ||
+    !validNullableTimestamp(value.lastUploadedAt, value.createdAt as number)
+  ) {
+    throw new TypeError("Invalid encrypted OSS configuration");
+  }
+  return {
+    schemaVersion: 1,
+    kind: "oss-configuration",
+    credentialId: OSS_CONFIGURATION_ID,
+    configuration: normalizeOssConfiguration(
+      value.configuration as OssConfiguration
+    ),
+    lastUploadedAt: (value.lastUploadedAt as number | null | undefined) ?? null,
+    lastEtag: normalizeNullableEtag(value.lastEtag),
+    createdAt: value.createdAt as number,
+    updatedAt: value.updatedAt as number
+  };
+}
+
 function normalizeAuditEntry(value: unknown): AuditEntry {
   if (typeof value !== "object" || value === null) {
     throw new TypeError("Invalid audit entry");
@@ -1225,7 +1370,10 @@ function normalizeAuditEntry(value: unknown): AuditEntry {
     "item-restored",
     "item-deleted",
     "backup-exported",
-    "backup-imported"
+    "backup-imported",
+    "oss-connected",
+    "oss-backup-uploaded",
+    "oss-disconnected"
   ]);
   if (
     typeof entry.id !== "string" ||
@@ -1258,7 +1406,11 @@ function recordAad(credentialId: string): Uint8Array<ArrayBuffer> {
 }
 
 function itemUpdatedAt(item: StoredVaultItem): number {
-  if (isPassword(item) || isAuditLog(item)) {
+  if (
+    isPassword(item) ||
+    isAuditLog(item) ||
+    isOssConfiguration(item)
+  ) {
     return item.updatedAt;
   }
   return item.lastUsedAt ?? item.createdAt;
@@ -1282,6 +1434,52 @@ function isPassword(
 
 function isAuditLog(item: StoredVaultItem): item is StoredAuditLog {
   return item.kind === "audit-log";
+}
+
+function isOssConfiguration(
+  item: StoredVaultItem
+): item is StoredOssConfiguration {
+  return item.kind === "oss-configuration";
+}
+
+function toOssConfigurationSummary(
+  item: StoredOssConfiguration
+): OssConfigurationSummary {
+  return {
+    endpoint: item.configuration.endpoint,
+    region: item.configuration.region,
+    bucket: item.configuration.bucket,
+    objectKey: item.configuration.objectKey,
+    accessKeyId: item.configuration.accessKeyId,
+    lastUploadedAt: item.lastUploadedAt,
+    lastEtag: item.lastEtag,
+    updatedAt: item.updatedAt
+  };
+}
+
+function normalizeNullableEtag(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  if (
+    typeof value !== "string" ||
+    value.length > 256 ||
+    /[\r\n]/u.test(value)
+  ) {
+    throw new TypeError("Invalid OSS ETag");
+  }
+  return value;
+}
+
+function sameOssTarget(
+  left: OssConfiguration,
+  right: OssConfiguration
+): boolean {
+  return (
+    left.endpoint === right.endpoint &&
+    left.bucket === right.bucket &&
+    left.objectKey === right.objectKey
+  );
 }
 
 function validNullableTimestamp(

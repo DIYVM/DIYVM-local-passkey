@@ -185,6 +185,72 @@
               </form>
               <ul id="autofill-origin-list" class="permission-list"></ul>
             </section>
+
+            <details class="card subsection">
+              <summary id="oss-summary">用户自有阿里云 OSS（未连接）</summary>
+              <p>
+                可选功能，仅手动上传或恢复现有加密备份。DIYVM 不提供中转服务器，
+                AccessKey Secret 会加密保存在本地 Vault 中。
+              </p>
+              <form id="oss-form" class="stacked-form">
+                <label>
+                  公网 Endpoint
+                  <input id="oss-endpoint" type="url"
+                    value="https://oss-cn-hangzhou.aliyuncs.com"
+                    placeholder="https://oss-cn-hangzhou.aliyuncs.com"
+                    autocomplete="off" spellcheck="false" required>
+                </label>
+                <label>
+                  Region ID
+                  <input id="oss-region" value="cn-hangzhou"
+                    placeholder="cn-hangzhou"
+                    autocomplete="off" spellcheck="false" maxlength="64"
+                    required>
+                </label>
+                <label>
+                  Bucket
+                  <input id="oss-bucket" placeholder="my-private-backup"
+                    autocomplete="off" spellcheck="false" maxlength="63"
+                    required>
+                </label>
+                <label>
+                  对象路径
+                  <input id="oss-object-key"
+                    value="diyvm-local-passkey/vault-backup.json"
+                    autocomplete="off" spellcheck="false" maxlength="1024"
+                    required>
+                </label>
+                <label>
+                  AccessKey ID
+                  <input id="oss-access-key-id" autocomplete="off"
+                    spellcheck="false" maxlength="512" required>
+                </label>
+                <label>
+                  AccessKey Secret
+                  <input id="oss-access-key-secret" type="password"
+                    autocomplete="new-password" spellcheck="false"
+                    maxlength="512" required>
+                </label>
+                <label class="check oss-consent">
+                  <input id="oss-consent" type="checkbox" required>
+                  我确认扩展会把加密备份发送到上述用户自有 OSS，
+                  并会保存加密后的 AccessKey 配置。
+                </label>
+                <button type="submit">保存并测试连接</button>
+              </form>
+              <div class="button-grid oss-actions">
+                <button id="oss-upload" type="button">上传加密备份</button>
+                <button id="oss-inspect" class="secondary" type="button">检查远程备份</button>
+                <button id="oss-restore" class="secondary" type="button">从 OSS 恢复</button>
+                <button id="oss-disconnect" class="danger" type="button">断开并清除配置</button>
+              </div>
+              <p id="oss-status" class="status-message" aria-live="polite">
+                尚未连接用户自有 OSS。
+              </p>
+              <small class="oss-warning">
+                请使用仅允许该 Bucket 路径读写的专用 RAM 用户，并在 Bucket 中开启版本控制。
+              </small>
+            </details>
           </section>
         </div>
 
@@ -194,7 +260,7 @@
       <footer>
         <span>v<span id="extension-version">—</span></span>
         <a href="https://www.diyvm.com/" target="_blank" rel="noopener noreferrer">DIYVM</a>
-        <span>LOCAL ONLY</span>
+        <span>LOCAL FIRST</span>
       </footer>
     </main>
 

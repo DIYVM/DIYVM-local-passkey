@@ -86,6 +86,27 @@ export interface VaultStatus {
   passwordAudit: PasswordAuditSummary;
 }
 
+export interface OssConfigurationSummary {
+  endpoint: string;
+  region: string;
+  bucket: string;
+  objectKey: string;
+  accessKeyId: string;
+  lastUploadedAt: number | null;
+  lastEtag: string | null;
+  updatedAt: number;
+}
+
+export interface OssRemoteBackupInfo {
+  itemCount: number;
+  exportedAt: string;
+  kdf: "ARGON2ID" | "PBKDF2-SHA-256";
+  size: number | null;
+  etag: string | null;
+  lastModifiedAt: number | null;
+  versionId: string | null;
+}
+
 export type ExtensionErrorCode =
   | "INVALID_MESSAGE"
   | "INVALID_REQUEST_ID"

@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 — 2026-08-03
+## 1.1.0 — 2026-08-03
 
 ### Added
 
@@ -15,12 +15,15 @@
 - Configurable 5, 15, 30, or 60 minute automatic locking.
 - Encrypted local audit history.
 - Backup structure verification and master-password change.
+- Optional manual encrypted backup and restore through user-owned Alibaba Cloud OSS.
 
 ### Security
 
 - New vaults use Argon2id to protect the random Vault Key.
 - Existing PBKDF2 vaults migrate after a successful unlock without recreating credentials.
 - Password filling requires an exact HTTPS Origin match.
+- OSS AccessKey configuration is encrypted inside the vault; only the selected Bucket host
+  receives a runtime permission.
 - Store builds exclude source maps and continue to contain no remote code or Manifest `key`.
 
 ### Compatibility

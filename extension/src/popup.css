@@ -545,6 +545,30 @@ p {
   margin-top: 9px;
 }
 
+.oss-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.oss-actions .danger {
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--line));
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+
+.oss-consent {
+  align-items: start !important;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.oss-warning {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
 .status-message {
   min-height: 15px;
   margin-top: 9px;
