@@ -3,7 +3,7 @@
   <h1>DIYVM Local Passkey</h1>
   <p>A local-first password and passkey manager with optional backup to user-owned OSS.</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.1.0-2458d3?style=flat-square" alt="Version 1.1.0">
+    <img src="https://img.shields.io/badge/version-1.1.1-2458d3?style=flat-square" alt="Version 1.1.1">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>

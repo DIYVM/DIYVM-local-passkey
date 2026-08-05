@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 — 2026-08-05
+
+### Fixed
+
+- Re-enabled the optional Amazon marketplace checkboxes after popup initialization while
+  keeping the default `amazon.com` permission locked on.
+
 ## 1.1.0 — 2026-08-03
 
 ### Added
