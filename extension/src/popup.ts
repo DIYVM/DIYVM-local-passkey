@@ -687,6 +687,7 @@ function renderAmazonRegions(): void {
     checkbox.checked =
       marketplace.domain === PRIMARY_AMAZON_DOMAIN ||
       enabled.has(marketplace.domain);
+    checkbox.dataset.amazonDomain = marketplace.domain;
     checkbox.disabled = marketplace.domain === PRIMARY_AMAZON_DOMAIN || busy;
     checkbox.addEventListener("change", () => {
       void toggleAmazonRegion(marketplace.domain, checkbox.checked);
@@ -1313,6 +1314,12 @@ function setBusy(value: boolean): void {
       return;
     }
     button.disabled = value;
+  });
+  document.querySelectorAll<HTMLInputElement>(
+    "input[data-amazon-domain]"
+  ).forEach((checkbox) => {
+    checkbox.disabled =
+      checkbox.dataset.amazonDomain === PRIMARY_AMAZON_DOMAIN || value;
   });
 }
 
