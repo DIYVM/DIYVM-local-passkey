@@ -55,6 +55,7 @@ type PopupRequest =
   | {
       type: "initializeVault" | "unlockVault";
       masterPassword: string;
+      rememberSession?: boolean;
     }
   | {
       type: "changeMasterPassword";
@@ -147,6 +148,7 @@ const elements = {
   lockVault: requireButton("lock-vault"),
   vaultForm: requireForm("vault-form"),
   masterPassword: requireInput("master-password"),
+  rememberSessionUnlock: requireInput("remember-session-unlock"),
   vaultAction: requireButton("vault-action"),
   vaultContent: requireElement("vault-content"),
   passkeyCount: requireElement("passkey-count"),
@@ -184,6 +186,7 @@ const elements = {
   newMasterPassword: requireInput("new-master-password"),
   confirmMasterPassword: requireInput("confirm-master-password"),
   autoLockMinutes: requireSelect("auto-lock-minutes"),
+  rememberSessionSetting: requireInput("remember-session-setting"),
   passkeyAllHttps: requireInput("passkey-all-https"),
   addAutoFillOriginForm: requireForm("add-autofill-origin-form"),
   autoFillOrigin: requireInput("autofill-origin"),
@@ -261,7 +264,11 @@ elements.vaultForm.addEventListener("submit", (event) => {
     return;
   }
   void sendPopupRequest(
-    { type, masterPassword },
+    {
+      type,
+      masterPassword,
+      rememberSession: elements.rememberSessionUnlock.checked
+    },
     type === "initializeVault" ? "正在创建加密 Vault" : "正在解锁 Vault"
   );
 });
@@ -327,6 +334,11 @@ elements.autoLockMinutes.addEventListener("change", () => {
   if (value === 5 || value === 15 || value === 30 || value === 60) {
     void updateSettings({ autoLockMinutes: value });
   }
+});
+elements.rememberSessionSetting.addEventListener("change", () => {
+  void updateSettings({
+    rememberSession: elements.rememberSessionSetting.checked
+  });
 });
 elements.passkeyAllHttps.addEventListener("change", () => {
   void togglePasskeyAllHttps(elements.passkeyAllHttps.checked);
@@ -438,7 +450,9 @@ function renderAll(): void {
     currentStatus.passwordAudit.weak + currentStatus.passwordAudit.reused
   );
   elements.autoLockLabel.textContent =
-    formatAutoLock(currentStatus.settings.autoLockMinutes);
+    currentStatus.settings.rememberSession
+      ? "SESSION"
+      : formatAutoLock(currentStatus.settings.autoLockMinutes);
   elements.extensionVersion.textContent = currentStatus.extensionVersion;
   elements.currentOrigin.textContent = currentStatus.currentOrigin
     ? `${currentStatus.currentOrigin}${
@@ -450,6 +464,12 @@ function renderAll(): void {
   elements.autoLockMinutes.value = String(
     currentStatus.settings.autoLockMinutes
   );
+  elements.rememberSessionUnlock.checked =
+    currentStatus.settings.rememberSession;
+  elements.rememberSessionSetting.checked =
+    currentStatus.settings.rememberSession;
+  elements.autoLockMinutes.disabled =
+    currentStatus.settings.rememberSession;
   elements.passkeyAllHttps.checked = currentStatus.settings.passkeyAllHttps;
   elements.auditWeak.textContent = String(currentStatus.passwordAudit.weak);
   elements.auditReused.textContent = String(currentStatus.passwordAudit.reused);

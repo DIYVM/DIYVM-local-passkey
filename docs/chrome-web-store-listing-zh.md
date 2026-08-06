@@ -1,11 +1,10 @@
-# Chrome Web Store 1.2.1 更新提交文案
+# Chrome Web Store 1.2.2 更新提交文案
 
-正式包：`DIYVM-Local-Passkey-Chrome-Web-Store-1.2.1.zip`
+正式包：`DIYVM-Local-Passkey-Chrome-Web-Store-1.2.2.zip`
 
-配套图片：`DIYVM-Chrome-Web-Store-Graphics-1.2.1.zip`（3 张 1280×800 截图、
-440×280 小型宣传图和 1400×560 顶部宣传图；均为无透明层的 24 位 PNG）。
+配套图片：可沿用已上传的通用 Passkey 商店素材；本次更新不改变商品定位或网站权限。
 
-注意：已经审核通过的线上版本不会让 `1.2.1` 自动免审。此次更新包含密码处理、可选
+注意：已经审核通过的线上版本不会让 `1.2.2` 自动免审。此次更新包含密码处理、可选
 主机权限，可能进入深入审核。
 
 ## 商品详情
@@ -149,7 +148,7 @@ JavaScript、Wasm、动态模块、配置脚本，也不使用 `eval` 或远程 
 
 `https://www.diyvm.com/local-passkey/privacy`
 
-该页面必须在提交 `1.2.1` 前更新为仓库
+该页面必须在提交 `1.2.2` 前更新为仓库
 [`docs/privacy-policy.md`](./privacy-policy.md) 的内容，尤其要新增密码、表单内容、
 可选网站权限、数据保留和 Limited Use 说明。不要只使用需要登录才能访问的页面。
 
@@ -179,8 +178,9 @@ JavaScript、Wasm、动态模块、配置脚本，也不使用 `eval` 或远程 
 
 ## 审核备注
 
-`1.2.1` 延续通用 HTTPS Passkey 模式，并将新主密码要求统一为至少 8 个字符，新增
-2 小时、8 小时和 24 小时自动锁定选项。解锁密钥仍仅保存在 Chrome 会话存储中。
+`1.2.2` 延续通用 HTTPS Passkey 模式，并增加可选的“本次 Chrome 会话保持解锁”。
+该功能不保存主密码；解锁密钥仍仅保存在 Chrome 会话存储中，并在手动锁定或浏览器
+会话结束时失效。
 点击式密码保存和填充支持 HTTP/HTTPS，HTTP 操作
 需要风险确认且不能持续自动填充。宽泛的 `optional_host_permissions` 也用于用户主动
 开启的全站 Passkey 模式；它默认关闭，不是安装时权限。拒绝该权限不会妨碍 Chrome/
@@ -188,10 +188,10 @@ JavaScript、Wasm、动态模块、配置脚本，也不使用 `eval` 或远程 
 
 ## 提交前必须同步
 
-1. 将名称、版本、说明、截图和宣传图更新为 DIYVM Local Passkey 1.2.1。
+1. 将名称、版本、说明、截图和宣传图更新为 DIYVM Local Passkey 1.2.2。
 2. 更新公开隐私政策页面。
 3. 在“隐私权”页重新填写单一用途、四项权限理由、主机权限、远程代码、数据类别和
    用户自有 OSS 传输说明。
 4. 如果控制台询问权限增加，请如实说明用户主动开启的全站 Passkey、密码管理和逐站点
    自动填充。
-5. 上传 ZIP 后确认系统解析出的 Manifest 版本为 `1.2.1`，且不存在 `key` 字段。
+5. 上传 ZIP 后确认系统解析出的 Manifest 版本为 `1.2.2`，且不存在 `key` 字段。

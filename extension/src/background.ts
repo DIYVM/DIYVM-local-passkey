@@ -84,6 +84,7 @@ type PopupRequest =
   | {
       type: "initializeVault" | "unlockVault";
       masterPassword: string;
+      rememberSession?: boolean;
     }
   | {
       type: "deleteCredential";
@@ -269,9 +270,15 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
     let ossRemoteBackupInfo: OssRemoteBackupInfo | undefined;
 
     if (message.type === "initializeVault") {
+      await opened.vault.updateSettings({
+        rememberSession: message.rememberSession === true
+      });
       await opened.vault.initialize(message.masterPassword);
       await scheduleAutoLock();
     } else if (message.type === "unlockVault") {
+      await opened.vault.updateSettings({
+        rememberSession: message.rememberSession === true
+      });
       await opened.vault.unlock(message.masterPassword);
       await scheduleAutoLock();
     } else if (message.type === "lockVault") {
@@ -762,6 +769,10 @@ async function handleAutoFillRequest(
 
 async function scheduleAutoLock(): Promise<void> {
   const settings = await new ChromeVaultSettingsStorage().read();
+  if (settings.rememberSession) {
+    await chrome.alarms.clear(AUTO_LOCK_ALARM);
+    return;
+  }
   await chrome.alarms.create(AUTO_LOCK_ALARM, {
     when: Date.now() + settings.autoLockMinutes * 60 * 1_000
   });
@@ -1149,10 +1160,16 @@ function isPopupRequest(value: unknown): value is PopupRequest {
     return isOssConfigurationInput(message.configuration);
   }
   if (message.type === "initializeVault") {
-    return isNewMasterPassword(message.masterPassword);
+    return (
+      isNewMasterPassword(message.masterPassword) &&
+      optionalBoolean(message.rememberSession)
+    );
   }
   if (message.type === "unlockVault") {
-    return isExistingMasterPassword(message.masterPassword);
+    return (
+      isExistingMasterPassword(message.masterPassword) &&
+      optionalBoolean(message.rememberSession)
+    );
   }
   if (message.type === "changeMasterPassword") {
     return (

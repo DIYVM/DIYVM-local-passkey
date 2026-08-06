@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.2 — 2026-08-06
+
+### Added
+
+- Added an opt-in "keep unlocked for this Chrome session" mode.
+- The preference is stored, but the master password is never stored. The
+  unlocked Vault Key remains in `chrome.storage.session` and is cleared by
+  manual locking, extension-data removal, or the end of the browser session.
+
 ## 1.2.1 — 2026-08-06
 
 ### Changed

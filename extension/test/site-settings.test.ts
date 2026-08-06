@@ -12,6 +12,12 @@ describe("vault settings parser", () => {
     assert.equal(parseVaultSettings({ autoLockMinutes: 1440 }).autoLockMinutes, 1440);
   });
 
+  it("keeps remember-session disabled unless explicitly selected", () => {
+    assert.equal(parseVaultSettings({}).rememberSession, false);
+    assert.equal(parseVaultSettings({ rememberSession: true }).rememberSession, true);
+    assert.equal(parseVaultSettings({ rememberSession: "yes" }).rememberSession, false);
+  });
+
   it("deduplicates origins, rejects unsafe values, and drops legacy site lists", () => {
     const parsed = parseVaultSettings({
       autoLockMinutes: 999,

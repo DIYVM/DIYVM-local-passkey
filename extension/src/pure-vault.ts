@@ -906,7 +906,9 @@ export class PureVault {
     await this.sessionStorage.write({
       vaultKey: encodeBase64Url(keyBytes),
       lastActivityAt: timestamp,
-      expiresAt: timestamp + settings.autoLockMinutes * 60 * 1_000
+      expiresAt: settings.rememberSession
+        ? Number.MAX_SAFE_INTEGER
+        : timestamp + settings.autoLockMinutes * 60 * 1_000
     });
   }
 }

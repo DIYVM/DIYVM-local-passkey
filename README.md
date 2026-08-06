@@ -3,7 +3,7 @@
   <h1>DIYVM Local Passkey</h1>
   <p>本地优先、可选用户自有 OSS 加密备份的密码与通行密钥管理器。</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.2.1-2458d3?style=flat-square" alt="Version 1.2.1">
+    <img src="https://img.shields.io/badge/version-1.2.2-2458d3?style=flat-square" alt="Version 1.2.2">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
@@ -18,7 +18,7 @@
 
 ## 这是什么
 
-DIYVM Local Passkey `1.2.1` 是一款面向通用网站的本地密码与通行密钥保险库。
+DIYVM Local Passkey `1.2.2` 是一款面向通用网站的本地密码与通行密钥保险库。
 扩展不需要 DIYVM 账户或开发者服务器；密码、通行密钥私钥和操作
 记录均先加密，再保存到浏览器本地。用户也可以选择把完整加密备份手动上传到自己的
 阿里云 OSS。
@@ -37,6 +37,7 @@ DIYVM Local Passkey `1.2.1` 是一款面向通用网站的本地密码与通行�
 - 新建、编辑、搜索、收藏、标签、备注、别名、回收站与恢复。
 - 可配置密码生成器，并在本地检查弱密码、重复密码和长期未更新密码。
 - 5 分钟至 24 小时自动锁定；关闭浏览器会丢弃会话密钥。
+- 可选“本次 Chrome 会话保持解锁”，不保存主密码，关闭浏览器或手动锁定即失效。
 - 加密备份、备份结构校验、完整恢复与主密码修改。
 - 可选用户自有阿里云 OSS 手动加密备份，不经过 DIYVM 服务器。
 - 加密的本地操作日志，不含明文密码。
@@ -110,13 +111,13 @@ npm run build:store
 5. 定期导出加密备份，并使用“验证备份”确认文件可读取。
 6. 可选：在“设置”中连接用户自有阿里云 OSS，手动上传、检查或恢复加密备份。
 
-## 1.2.1 的边界
+## 1.2.2 的边界
 
 - 不提供多设备双向实时同步、共享保险库、支付卡或身份资料自动填充。
 - 软件通行密钥的隔离强度低于 TPM、Secure Enclave 或独立硬件安全密钥。
 - 密码填入网页后，该网页自身的脚本可能读取输入框内容；只应在可信、域名正确的网站填充。
 - 本项目完成了自动化测试和代码级安全检查，但不宣称已通过独立第三方安全审计。
-- Chrome Web Store 中已经发布的旧版本与本仓库的 `1.2.1` 更新是不同审核批次；提交更新后
+- Chrome Web Store 中已经发布的旧版本与本仓库的 `1.2.2` 更新是不同审核批次；提交更新后
   仍需等待 Google 审核。
 
 ## 数据与隐私

@@ -47,6 +47,11 @@
             >
             <button id="vault-action" type="submit">解锁</button>
           </div>
+          <label class="check">
+            <input id="remember-session-unlock" type="checkbox">
+            本次 Chrome 会话保持解锁
+          </label>
+          <small>勾选后不会自动锁定，但关闭 Chrome 或手动锁定仍会立即失效；不会保存主密码。</small>
           <small>创建新保险库至少需要 8 个字符；已有保险库请使用原密码。主密码不会保存，也无法找回。</small>
         </form>
 
@@ -161,6 +166,11 @@
             </div>
 
             <section class="card subsection">
+              <label class="check">
+                <input id="remember-session-setting" type="checkbox">
+                本次 Chrome 会话保持解锁
+              </label>
+              <small>只保存此偏好和会话解密密钥，不保存主密码；关闭 Chrome 后必须重新解锁。</small>
               <label for="auto-lock-minutes">自动锁定</label>
               <select id="auto-lock-minutes">
                 <option value="5">5 分钟</option>

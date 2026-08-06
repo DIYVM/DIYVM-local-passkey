@@ -129,6 +129,14 @@ describe("unified password and passkey vault", () => {
     assert.equal((await vault.status()).vaultState, "locked");
   });
 
+  it("keeps the vault unlocked only for the active browser session", async () => {
+    await vault.updateSettings({ rememberSession: true });
+    now += 30 * 24 * 60 * 60 * 1_000;
+    assert.equal((await vault.status()).vaultState, "unlocked");
+    await vault.lock();
+    assert.equal((await vault.status()).vaultState, "locked");
+  });
+
   it("encrypts OSS configuration inside the vault and removes it on disconnect", async () => {
     const configuration = {
       endpoint: "https://oss-cn-hangzhou.aliyuncs.com",

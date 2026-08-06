@@ -71,6 +71,7 @@ export type AutoLockMinutes = 5 | 15 | 30 | 60 | 120 | 480 | 1440;
 
 export interface VaultSettings {
   autoLockMinutes: AutoLockMinutes;
+  rememberSession: boolean;
   lastBackupAt: number | null;
   passkeyAllHttps: boolean;
   autoFillOrigins: string[];

@@ -16,6 +16,7 @@ const AUTO_LOCK_VALUES = new Set<AutoLockMinutes>([
 
 export const DEFAULT_VAULT_SETTINGS: VaultSettings = {
   autoLockMinutes: 15,
+  rememberSession: false,
   lastBackupAt: null,
   passkeyAllHttps: false,
   autoFillOrigins: []
@@ -92,6 +93,7 @@ export function parseVaultSettings(value: unknown): VaultSettings {
   });
   return {
     autoLockMinutes,
+    rememberSession: candidate.rememberSession === true,
     lastBackupAt,
     passkeyAllHttps: candidate.passkeyAllHttps === true,
     autoFillOrigins
