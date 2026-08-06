@@ -47,6 +47,8 @@ body {
 body {
   overflow-x: hidden;
   background: var(--surface);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 button,
@@ -73,13 +75,13 @@ summary:focus-visible {
 }
 
 button {
-  min-height: 34px;
+  min-height: 38px;
   padding: 7px 11px;
   border: 0;
   border-radius: 6px;
   color: #ffffff;
   background: #087cf0;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 750;
   cursor: pointer;
 }
@@ -116,7 +118,7 @@ button.ghost:hover,
 }
 
 button.compact {
-  min-height: 38px;
+  min-height: 42px;
   padding-inline: 10px;
   border-radius: 0 6px 6px 0;
 }
@@ -130,24 +132,24 @@ select {
   border-radius: 6px;
   color: inherit;
   background: var(--surface);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 input,
 select {
-  height: 38px;
+  height: 42px;
   padding: 0 10px;
 }
 
 textarea {
-  min-height: 72px;
+  min-height: 80px;
   padding: 9px 10px;
   resize: vertical;
 }
 
 input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   accent-color: var(--blue);
 }
@@ -160,7 +162,7 @@ p {
 }
 
 .hero {
-  padding: 15px 17px 13px;
+  padding: 17px 18px 14px;
   color: #ffffff;
   background:
     radial-gradient(circle at 92% 12%, rgb(69 200 255 / 28%), transparent 35%),
@@ -180,16 +182,16 @@ p {
 }
 
 .brand h1 {
-  font-size: 14px;
+  font-size: 17px;
   letter-spacing: -0.01em;
 }
 
 .brand p,
 .section-heading span {
-  margin-top: 3px;
+  margin-top: 4px;
   color: #8fd4ff;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 8px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.11em;
 }
@@ -199,22 +201,23 @@ p {
   grid-template-columns: 9px minmax(0, 1fr) auto;
   gap: 9px;
   align-items: center;
-  margin-top: 13px;
-  padding: 11px 0;
+  margin-top: 14px;
+  padding: 12px 0;
   border-top: 1px solid rgb(255 255 255 / 15%);
   border-bottom: 1px solid rgb(255 255 255 / 15%);
 }
 
 .status-line strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .status-line small {
   display: block;
-  margin-top: 2px;
+  margin-top: 3px;
   color: #b4c9df;
-  font-size: 9px;
+  font-size: 10.5px;
+  line-height: 1.35;
 }
 
 .status-dot {
@@ -241,7 +244,7 @@ p {
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 12px 0 0;
+  margin: 13px 0 0;
 }
 
 .metrics div {
@@ -258,14 +261,14 @@ p {
 .metrics dt {
   color: #8fb0d0;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 7px;
+  font-size: 9.5px;
   font-weight: 700;
 }
 
 .metrics dd {
   margin: 3px 0 0;
   color: #ffffff;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -297,7 +300,7 @@ p {
 .subsection > label {
   display: grid;
   gap: 5px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -306,8 +309,8 @@ p {
 .subsection p,
 .status-message {
   color: var(--muted);
-  font-size: 9px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .inline {
@@ -331,13 +334,13 @@ p {
 }
 
 .tabs button {
-  min-height: 38px;
+  min-height: 42px;
   padding: 8px 3px;
   border-radius: 0;
   border-bottom: 2px solid transparent;
   color: var(--muted);
   background: transparent;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .tabs button:hover,
@@ -365,15 +368,15 @@ p {
 }
 
 .section-heading h2 {
-  margin-top: 3px;
-  font-size: 14px;
+  margin-top: 4px;
+  font-size: 17px;
 }
 
 .section-heading small {
   overflow: hidden;
   max-width: 220px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -398,7 +401,7 @@ p {
   gap: 5px;
   align-items: center;
   color: var(--muted);
-  font-size: 9px !important;
+  font-size: 12px !important;
   white-space: nowrap;
 }
 
@@ -439,18 +442,18 @@ p {
 }
 
 .item-main strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .item-main span {
-  margin-top: 2px;
-  font-size: 10px;
+  margin-top: 3px;
+  font-size: 12px;
 }
 
 .item-main small {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10.5px;
 }
 
 .item-actions {
@@ -461,9 +464,9 @@ p {
 }
 
 .item-actions button {
-  min-height: 27px;
-  padding: 5px 7px;
-  font-size: 8px;
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 11px;
 }
 
 .item-actions .danger {
@@ -485,7 +488,7 @@ p {
   border: 1px dashed var(--line);
   border-radius: 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -515,13 +518,13 @@ p {
 }
 
 .audit-grid strong {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .audit-grid span {
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10.5px;
 }
 
 .subsection {
@@ -530,7 +533,7 @@ p {
 
 .subsection h3,
 .subsection summary {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 750;
 }
 
@@ -565,12 +568,12 @@ p {
   display: block;
   margin-top: 7px;
   color: var(--muted);
-  font-size: 8px;
-  line-height: 1.45;
+  font-size: 10.5px;
+  line-height: 1.5;
 }
 
 .status-message {
-  min-height: 15px;
+  min-height: 18px;
   margin-top: 9px;
 }
 
@@ -591,8 +594,8 @@ p {
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
-  font-size: 8px;
-  line-height: 1.4;
+  font-size: 10.5px;
+  line-height: 1.5;
 }
 
 .stacked-form,
@@ -610,7 +613,7 @@ p {
 .permission-list > label {
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .permission-list .region-copy {
@@ -623,9 +626,9 @@ p {
 }
 
 .permission-list small {
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10.5px;
 }
 
 footer {
@@ -636,7 +639,7 @@ footer {
   color: var(--muted);
   background: var(--soft);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 footer a {
@@ -677,14 +680,14 @@ dialog::backdrop {
 .dialog-form header span {
   color: var(--blue-dark);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 8px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.1em;
 }
 
 .dialog-form header h2 {
-  margin-top: 3px;
-  font-size: 15px;
+  margin-top: 4px;
+  font-size: 17px;
 }
 
 .dialog-form header .ghost {
@@ -704,13 +707,13 @@ dialog::backdrop {
 }
 
 .generator label {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .generator small {
   grid-column: 1 / -1;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10.5px;
 }
 
 .dialog-actions {
