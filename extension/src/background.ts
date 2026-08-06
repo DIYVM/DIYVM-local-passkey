@@ -28,6 +28,10 @@ import {
 } from "./confirmation-messages";
 import { allowedPageOrigin } from "./origin-policy";
 import {
+  isExistingMasterPassword,
+  isNewMasterPassword
+} from "./master-password";
+import {
   type AuditEntry,
   PureExtensionError,
   openPureVault
@@ -1144,13 +1148,16 @@ function isPopupRequest(value: unknown): value is PopupRequest {
   if (message.type === "configureOss") {
     return isOssConfigurationInput(message.configuration);
   }
-  if (message.type === "initializeVault" || message.type === "unlockVault") {
-    return boundedMasterPassword(message.masterPassword);
+  if (message.type === "initializeVault") {
+    return isNewMasterPassword(message.masterPassword);
+  }
+  if (message.type === "unlockVault") {
+    return isExistingMasterPassword(message.masterPassword);
   }
   if (message.type === "changeMasterPassword") {
     return (
-      boundedMasterPassword(message.currentPassword) &&
-      boundedMasterPassword(message.newPassword)
+      isExistingMasterPassword(message.currentPassword) &&
+      isNewMasterPassword(message.newPassword)
     );
   }
   if (message.type === "savePassword" || message.type === "updatePassword") {
@@ -1213,14 +1220,6 @@ function requireInsecureHttpConfirmation(
       "HTTP 网站连接未加密，请确认风险后再保存密码"
     );
   }
-}
-
-function boundedMasterPassword(value: unknown): value is string {
-  const passwordBytes =
-    typeof value === "string"
-      ? new TextEncoder().encode(value).byteLength
-      : 0;
-  return passwordBytes >= 12 && passwordBytes <= 1024;
 }
 
 function isVaultItemId(value: unknown): value is string {

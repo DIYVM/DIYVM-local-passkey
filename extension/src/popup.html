@@ -40,14 +40,14 @@
             <input
               id="master-password"
               type="password"
-              minlength="12"
+              minlength="8"
               maxlength="1024"
               autocomplete="current-password"
               required
             >
             <button id="vault-action" type="submit">解锁</button>
           </div>
-          <small>至少 12 个 UTF-8 字节。主密码不会保存，也无法找回。</small>
+          <small>创建新保险库至少需要 8 个字符；已有保险库请使用原密码。主密码不会保存，也无法找回。</small>
         </form>
 
         <div id="vault-content" hidden>
@@ -143,9 +143,9 @@
             <details class="card subsection">
               <summary>修改主密码</summary>
               <form id="change-password-form" class="stacked-form">
-                <label>当前主密码<input id="current-master-password" type="password" minlength="12" required></label>
-                <label>新主密码<input id="new-master-password" type="password" minlength="12" required></label>
-                <label>确认新主密码<input id="confirm-master-password" type="password" minlength="12" required></label>
+                <label>当前主密码<input id="current-master-password" type="password" required></label>
+                <label>新主密码<input id="new-master-password" type="password" minlength="8" required></label>
+                <label>确认新主密码<input id="confirm-master-password" type="password" minlength="8" required></label>
                 <button type="submit">更新主密码</button>
               </form>
             </details>
@@ -167,7 +167,11 @@
                 <option value="15">15 分钟</option>
                 <option value="30">30 分钟</option>
                 <option value="60">60 分钟</option>
+                <option value="120">2 小时</option>
+                <option value="480">8 小时</option>
+                <option value="1440">24 小时</option>
               </select>
+              <small>解锁密钥只保留在本次浏览器会话中；关闭 Chrome 后仍需重新输入主密码。</small>
             </section>
 
             <section class="card subsection">

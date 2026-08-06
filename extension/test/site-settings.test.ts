@@ -7,6 +7,11 @@ import {
 } from "../src/vault-settings";
 
 describe("vault settings parser", () => {
+  it("supports longer session-only auto-lock periods", () => {
+    assert.equal(parseVaultSettings({ autoLockMinutes: 480 }).autoLockMinutes, 480);
+    assert.equal(parseVaultSettings({ autoLockMinutes: 1440 }).autoLockMinutes, 1440);
+  });
+
   it("deduplicates origins, rejects unsafe values, and drops legacy site lists", () => {
     const parsed = parseVaultSettings({
       autoLockMinutes: 999,

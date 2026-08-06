@@ -40,6 +40,10 @@ import {
   normalizeOssConfiguration,
   type OssConfiguration
 } from "./oss-client";
+import {
+  isExistingMasterPassword,
+  isNewMasterPassword
+} from "./master-password";
 
 const LEGACY_PBKDF2_ITERATIONS = 600_000;
 const ARGON2_ITERATIONS = 2;
@@ -267,7 +271,7 @@ export class PureVault {
   }
 
   async initialize(masterPassword: string): Promise<void> {
-    validateMasterPassword(masterPassword);
+    validateNewMasterPassword(masterPassword);
     if (await this.store.hasVault()) {
       throw new PureExtensionError(
         "INVALID_STATE",
@@ -291,7 +295,7 @@ export class PureVault {
   }
 
   async unlock(masterPassword: string): Promise<void> {
-    validateMasterPassword(masterPassword);
+    validateExistingMasterPassword(masterPassword);
     const metadata = await this.store.readMetadata();
     if (!metadata) {
       throw new PureExtensionError(
@@ -323,8 +327,8 @@ export class PureVault {
     currentPassword: string,
     newPassword: string
   ): Promise<void> {
-    validateMasterPassword(currentPassword);
-    validateMasterPassword(newPassword);
+    validateExistingMasterPassword(currentPassword);
+    validateNewMasterPassword(newPassword);
     if (currentPassword === newPassword) {
       throw new PureExtensionError(
         "INVALID_PASSWORD",
@@ -1493,12 +1497,20 @@ function validNullableTimestamp(
   );
 }
 
-function validateMasterPassword(masterPassword: string): void {
-  const byteLength = new TextEncoder().encode(masterPassword).byteLength;
-  if (byteLength < 12 || byteLength > 1024) {
+function validateExistingMasterPassword(masterPassword: string): void {
+  if (!isExistingMasterPassword(masterPassword)) {
     throw new PureExtensionError(
       "INVALID_PASSWORD",
-      "主密码必须为 12 至 1024 个 UTF-8 字节"
+      "主密码格式无效"
+    );
+  }
+}
+
+function validateNewMasterPassword(masterPassword: string): void {
+  if (!isNewMasterPassword(masterPassword)) {
+    throw new PureExtensionError(
+      "INVALID_PASSWORD",
+      "新主密码至少需要 8 个字符"
     );
   }
 }

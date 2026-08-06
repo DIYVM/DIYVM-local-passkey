@@ -37,6 +37,10 @@ import {
   ossPermissionPattern,
   type OssConfigurationInput
 } from "./oss-client";
+import {
+  isNewMasterPassword,
+  MIN_MASTER_PASSWORD_CHARACTERS
+} from "./master-password";
 
 interface ExtensionStatus extends VaultStatus {
   extensionVersion: string;
@@ -245,14 +249,17 @@ elements.lockVault.addEventListener("click", () => {
 elements.vaultForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const masterPassword = elements.masterPassword.value;
-  if (new TextEncoder().encode(masterPassword).byteLength < 12) {
-    setOperationStatus("主密码至少需要 12 个 UTF-8 字节", "error");
-    return;
-  }
   const type =
     currentStatus?.vaultState === "notInitialized"
       ? "initializeVault"
       : "unlockVault";
+  if (type === "initializeVault" && !isNewMasterPassword(masterPassword)) {
+    setOperationStatus(
+      `新主密码至少需要 ${MIN_MASTER_PASSWORD_CHARACTERS} 个字符`,
+      "error"
+    );
+    return;
+  }
   void sendPopupRequest(
     { type, masterPassword },
     type === "initializeVault" ? "正在创建加密 Vault" : "正在解锁 Vault"
@@ -421,13 +428,17 @@ function renderAll(): void {
     currentStatus.vaultState === "notInitialized"
       ? "new-password"
       : "current-password";
+  elements.masterPassword.minLength =
+    currentStatus.vaultState === "notInitialized"
+      ? MIN_MASTER_PASSWORD_CHARACTERS
+      : 1;
   elements.passkeyCount.textContent = String(currentStatus.passkeyCount);
   elements.passwordCount.textContent = String(currentStatus.passwordCount);
   elements.riskCount.textContent = String(
     currentStatus.passwordAudit.weak + currentStatus.passwordAudit.reused
   );
   elements.autoLockLabel.textContent =
-    `${currentStatus.settings.autoLockMinutes}M`;
+    formatAutoLock(currentStatus.settings.autoLockMinutes);
   elements.extensionVersion.textContent = currentStatus.extensionVersion;
   elements.currentOrigin.textContent = currentStatus.currentOrigin
     ? `${currentStatus.currentOrigin}${
@@ -1200,6 +1211,13 @@ async function changeMasterPassword(): Promise<void> {
     setOperationStatus("两次输入的新主密码不一致", "error");
     return;
   }
+  if (!isNewMasterPassword(newPassword)) {
+    setOperationStatus(
+      `新主密码至少需要 ${MIN_MASTER_PASSWORD_CHARACTERS} 个字符`,
+      "error"
+    );
+    return;
+  }
   const response = await sendPopupRequest(
     { type: "changeMasterPassword", currentPassword, newPassword },
     "正在更新主密码并重新包装 Vault Key"
@@ -1458,6 +1476,10 @@ function formatMillisecondDate(timestamp: number): string {
     dateStyle: "short",
     timeStyle: "short"
   }).format(new Date(timestamp));
+}
+
+function formatAutoLock(minutes: number): string {
+  return minutes < 60 ? `${minutes}M` : `${minutes / 60}H`;
 }
 
 function formatBytes(bytes: number): string {

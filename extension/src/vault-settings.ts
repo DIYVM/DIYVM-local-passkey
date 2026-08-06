@@ -4,7 +4,15 @@ import type {
 } from "./types";
 
 const SETTINGS_KEY = "localVaultSettingsV1";
-const AUTO_LOCK_VALUES = new Set<AutoLockMinutes>([5, 15, 30, 60]);
+const AUTO_LOCK_VALUES = new Set<AutoLockMinutes>([
+  5,
+  15,
+  30,
+  60,
+  120,
+  480,
+  1440
+]);
 
 export const DEFAULT_VAULT_SETTINGS: VaultSettings = {
   autoLockMinutes: 15,

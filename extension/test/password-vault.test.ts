@@ -42,6 +42,32 @@ describe("unified password and passkey vault", () => {
     await deleteIndexedDbVault(databaseName);
   });
 
+  it("accepts an eight-character master password and rejects seven", async () => {
+    const shortDatabaseName = `diyvm-password-policy-${crypto.randomUUID()}`;
+    const shortStore = await IndexedDbVaultStore.open({
+      databaseName: shortDatabaseName
+    });
+    const shortVault = new PureVault(
+      shortStore,
+      new MemoryVaultSessionStorage(),
+      () => now,
+      new MemoryVaultSettingsStorage()
+    );
+    try {
+      await assert.rejects(
+        () => shortVault.initialize("1234567"),
+        (error) =>
+          error instanceof PureExtensionError &&
+          error.code === "INVALID_PASSWORD"
+      );
+      await shortVault.initialize("12345678");
+      assert.equal((await shortVault.status()).vaultState, "unlocked");
+    } finally {
+      shortStore.close();
+      await deleteIndexedDbVault(shortDatabaseName);
+    }
+  });
+
   it("creates, updates, audits, trashes, restores, and fills passwords", async () => {
     const created = await vault.savePassword({
       name: "Example",

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.1 — 2026-08-06
+
+### Changed
+
+- New and changed master passwords now require at least 8 Unicode characters.
+- Existing vaults remain unlockable with their original password policy.
+- Added 2-hour, 8-hour, and 24-hour auto-lock options. The unlocked Vault Key
+  remains limited to Chrome session storage and is cleared when the browser
+  session ends.
+
 ## 1.2.0 — 2026-08-06
 
 ### Changed
