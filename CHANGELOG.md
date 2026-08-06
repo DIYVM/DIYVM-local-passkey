@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.2 — 2026-08-06
+
+### Added
+
+- Optional user-initiated Passkey support on all top-level HTTPS sites, with a separate
+  Chrome host-permission prompt and per-ceremony local/system choice.
+- Manual password capture, save, and fill on HTTP origins with an explicit warning before
+  saving and every fill; persistent autofill remains HTTPS-only.
+
+### Security
+
+- Validates generic WebAuthn RP IDs against an offline public/private suffix list and falls
+  back to Chrome/system for conditional UI, unsupported extensions, unsafe RP scopes,
+  unavailable local vaults, and missing local credentials.
+- Removes dynamic all-site bridge scripts and the broad HTTPS permission when the user turns
+  off all-site Passkey mode.
+
 ## 1.1.1 — 2026-08-05
 
 ### Fixed

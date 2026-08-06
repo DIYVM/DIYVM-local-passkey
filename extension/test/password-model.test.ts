@@ -5,11 +5,12 @@ import {
   auditPasswords,
   generatePassword,
   normalizeCredentialOrigin,
+  normalizePasswordInput,
   passwordStrength
 } from "../src/password-model";
 
 describe("password model", () => {
-  it("normalizes HTTPS origins and rejects unsafe addresses", () => {
+  it("normalizes HTTP/HTTPS origins and rejects unsupported addresses", () => {
     assert.equal(
       normalizeCredentialOrigin("example.com/login"),
       "https://example.com"
@@ -18,14 +19,30 @@ describe("password model", () => {
       normalizeCredentialOrigin("https://EXAMPLE.com:8443/path"),
       "https://example.com:8443"
     );
-    assert.throws(
-      () => normalizeCredentialOrigin("http://example.com"),
-      /HTTPS/
+    assert.equal(
+      normalizeCredentialOrigin("http://EXAMPLE.com/login"),
+      "http://example.com"
     );
     assert.throws(
       () => normalizeCredentialOrigin("https://user:pass@example.com"),
-      /HTTPS/
+      /HTTP\/HTTPS/
     );
+    assert.throws(
+      () => normalizeCredentialOrigin("ftp://example.com"),
+      /HTTP\/HTTPS/
+    );
+  });
+
+  it("never enables persistent autofill for HTTP credentials", () => {
+    const normalized = normalizePasswordInput({
+      name: "Legacy HTTP",
+      origin: "http://example.com/login",
+      username: "user",
+      password: "secret",
+      autoFill: true
+    });
+    assert.equal(normalized.origin, "http://example.com");
+    assert.equal(normalized.autoFill, false);
   });
 
   it("generates passwords with selected character groups", () => {
@@ -64,14 +81,20 @@ describe("password model", () => {
         origin: "https://trash.example",
         updatedAt: now,
         deletedAt: now
+      },
+      {
+        password: "insecure",
+        origin: "http://legacy.example",
+        updatedAt: now,
+        deletedAt: null
       }
     ], now);
     assert.deepEqual(result.summary, {
-      total: 2,
-      weak: 2,
+      total: 3,
+      weak: 3,
       reused: 2,
       stale: 1,
-      insecureOrigins: 0
+      insecureOrigins: 1
     });
   });
 });

@@ -6,6 +6,7 @@ import type {
   SerializedCredentialDescriptor,
   SerializedRequestOptions
 } from "./types";
+import { parse as parseDomain } from "tldts";
 
 import {
   PureExtensionError,
@@ -21,7 +22,6 @@ import {
   sha256
 } from "./binary";
 import { encodeCbor, type CborValue } from "./cbor";
-import { isAllowedAmazonHostname } from "./origin-policy";
 
 const ES256_ALGORITHM = -7;
 const CREATE_FLAGS = 0x01 | 0x04 | 0x40;
@@ -30,6 +30,7 @@ const AAGUID = new Uint8Array(16);
 
 export interface CreationConfirmationDetails {
   operation: "create";
+  origin: string;
   rpId: string;
   rpName: string;
   userName: string;
@@ -46,6 +47,7 @@ export interface AssertionCandidate {
 
 export interface AssertionConfirmationDetails {
   operation: "get";
+  origin: string;
   rpId: string;
   credentials: AssertionCandidate[];
 }
@@ -76,6 +78,7 @@ export class SoftwareAuthenticator {
     }
     return {
       operation: "create",
+      origin: validated.origin,
       rpId: validated.rpId,
       rpName: options.rp.name,
       userName: options.user.name,
@@ -109,6 +112,7 @@ export class SoftwareAuthenticator {
     );
     return {
       operation: "get",
+      origin: validated.origin,
       rpId: validated.rpId,
       credentials: credentials.map((credential) => ({
         credentialId: credential.credentialId,
@@ -337,6 +341,7 @@ function validateCreation(
       "网站要求外接安全密钥，无法使用本地纯插件"
     );
   }
+  validateExtensions(options.extensions, new Set(["credProps"]));
   validateDescriptors(options.excludeCredentials);
   return result;
 }
@@ -347,6 +352,7 @@ function validateRequest(
 ): { origin: string; rpId: string } {
   const result = validateOriginAndRpId(origin, options.rpId);
   validateChallenge(options.challenge);
+  validateExtensions(options.extensions, new Set());
   validateDescriptors(options.allowCredentials);
   return result;
 }
@@ -370,24 +376,63 @@ function validateOriginAndRpId(
     throw extensionError("SECURITY_ERROR", "WebAuthn 来源不受信任");
   }
   const hostname = origin.hostname.toLowerCase();
-  const rpId = (requestedRpId ?? hostname).toLowerCase();
+  const rpId = normalizeRpId(requestedRpId ?? hostname);
   const exactHost = hostname === rpId;
-  const parentDomain =
-    hostname.endsWith(`.${rpId}`) &&
-    isAllowedAmazonHostname(rpId);
+  const parentDomain = hostname.endsWith(`.${rpId}`);
+  const parsedRpId = parseDomain(rpId, { allowPrivateDomains: true });
+  const registrableRpId =
+    rpId === "localhost" ||
+    (
+      parsedRpId.isIp === false &&
+      parsedRpId.domain !== null
+    );
   if (
-    !isAllowedAmazonHostname(hostname) ||
     (!exactHost && !parentDomain) ||
-    rpId.length > 253 ||
-    rpId.startsWith(".") ||
-    rpId.endsWith(".")
+    !registrableRpId
   ) {
     throw extensionError(
       "SECURITY_ERROR",
-      "网站不在 Amazon 允许范围内，或 RP ID 与当前域名不匹配"
+      "RP ID 不是当前 HTTPS 域名的有效可注册域"
     );
   }
   return { origin: origin.origin, rpId };
+}
+
+function normalizeRpId(value: string): string {
+  const normalized = value.toLowerCase();
+  const labels = normalized.split(".");
+  if (
+    normalized.length < 1 ||
+    normalized.length > 253 ||
+    normalized.startsWith(".") ||
+    normalized.endsWith(".") ||
+    labels.some(
+      (label) =>
+        label.length < 1 ||
+        label.length > 63 ||
+        label.startsWith("-") ||
+        label.endsWith("-") ||
+        !/^[a-z0-9-]+$/u.test(label)
+    )
+  ) {
+    throw extensionError("SECURITY_ERROR", "WebAuthn RP ID 无效");
+  }
+  return normalized;
+}
+
+function validateExtensions(
+  extensions: Record<string, unknown> | undefined,
+  supported: ReadonlySet<string>
+): void {
+  const unsupported = Object.keys(extensions ?? {}).filter(
+    (name) => !supported.has(name)
+  );
+  if (unsupported.length > 0) {
+    throw extensionError(
+      "NOT_SUPPORTED",
+      `网站请求了本地验证器尚不支持的 WebAuthn 扩展：${unsupported.join(", ")}`
+    );
+  }
 }
 
 function validateChallenge(challenge: string): void {

@@ -40,6 +40,7 @@ describe("vault settings parser", () => {
     assert.deepEqual(parseVaultSettings({
       autoLockMinutes: 999,
       lastBackupAt: -1,
+      passkeyAllHttps: true,
       enabledAmazonRegions: [
         "amazon.co.jp",
         "amazon.co.jp",
@@ -55,6 +56,7 @@ describe("vault settings parser", () => {
       ]
     }), {
       ...DEFAULT_VAULT_SETTINGS,
+      passkeyAllHttps: true,
       enabledAmazonRegions: ["amazon.co.jp"],
       autoFillOrigins: ["https://example.com"]
     });

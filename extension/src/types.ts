@@ -72,6 +72,7 @@ export type AutoLockMinutes = 5 | 15 | 30 | 60;
 export interface VaultSettings {
   autoLockMinutes: AutoLockMinutes;
   lastBackupAt: number | null;
+  passkeyAllHttps: boolean;
   enabledAmazonRegions: string[];
   autoFillOrigins: string[];
 }

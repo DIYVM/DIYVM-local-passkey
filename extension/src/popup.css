@@ -572,6 +572,23 @@ p {
   line-height: 1.5;
 }
 
+.origin-guidance,
+.origin-warning {
+  display: block;
+  margin-top: -5px;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.origin-guidance {
+  color: var(--muted);
+}
+
+.origin-warning {
+  color: var(--warning);
+  font-weight: 700;
+}
+
 .status-message {
   min-height: 18px;
   margin-top: 9px;

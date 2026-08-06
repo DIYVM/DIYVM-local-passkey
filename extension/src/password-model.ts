@@ -60,12 +60,12 @@ export function normalizeCredentialOrigin(value: string): string {
   }
 
   if (
-    url.protocol !== "https:" ||
+    (url.protocol !== "https:" && url.protocol !== "http:") ||
     url.hostname.length === 0 ||
     url.username !== "" ||
     url.password !== ""
   ) {
-    throw new TypeError("密码条目只允许绑定无账号信息的 HTTPS 网站");
+    throw new TypeError("密码条目只允许绑定无账号信息的 HTTP/HTTPS 网站");
   }
   return url.origin;
 }
@@ -78,6 +78,7 @@ export function normalizePasswordInput(input: PasswordInput): Required<
   const password = input.password;
   const notes = input.notes?.trim() ?? "";
   const tags = normalizeTags(input.tags ?? []);
+  const origin = normalizeCredentialOrigin(input.origin);
 
   if (name.length < 1 || name.length > 128) {
     throw new TypeError("条目名称必须为 1 至 128 个字符");
@@ -96,13 +97,14 @@ export function normalizePasswordInput(input: PasswordInput): Required<
   return {
     ...(input.itemId ? { itemId: input.itemId } : {}),
     name,
-    origin: normalizeCredentialOrigin(input.origin),
+    origin,
     username,
     password,
     notes,
     favorite: input.favorite === true,
     tags,
-    autoFill: input.autoFill === true
+    autoFill:
+      input.autoFill === true && new URL(origin).protocol === "https:"
   };
 }
 

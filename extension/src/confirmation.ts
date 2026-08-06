@@ -8,6 +8,7 @@ const confirmationId = new URL(location.href).searchParams.get("id");
 const elements = {
   title: requireElement("confirmation-title"),
   description: requireElement("confirmation-description"),
+  origin: requireElement("confirmation-origin"),
   site: requireElement("confirmation-site"),
   accountGroup: requireElement("account-group"),
   account: requireSelect("confirmation-account"),
@@ -52,6 +53,7 @@ async function loadDetails(): Promise<void> {
 }
 
 function renderDetails(details: ConfirmationDetails): void {
+  elements.origin.textContent = details.origin;
   elements.site.textContent = details.rpId;
   if (details.operation === "create") {
     elements.title.textContent = "创建本地通行密钥";

@@ -21,7 +21,7 @@ export function fillPasswordInPage(
   password: string,
   expectedOrigin = location.origin,
   inspectOnly = false,
-  allowInsecureLoopbackForTesting = false
+  allowInsecureHttp = false
 ): PasswordFillResult {
   type QueryRoot = Document | ShadowRoot;
 
@@ -34,13 +34,8 @@ export function fillPasswordInPage(
   const trustedProtocol =
     location.protocol === "https:" ||
     (
-      allowInsecureLoopbackForTesting &&
-      location.protocol === "http:" &&
-      (
-        location.hostname === "localhost" ||
-        location.hostname === "127.0.0.1" ||
-        location.hostname === "[::1]"
-      )
+      allowInsecureHttp &&
+      location.protocol === "http:"
     );
   if (!trustedProtocol || location.origin !== expectedOrigin) {
     return failure("登录框来源与密码条目不一致");
@@ -378,20 +373,15 @@ export function fillPasswordInPage(
 
 export function captureLoginFormInPage(
   expectedOrigin = location.origin,
-  allowInsecureLoopbackForTesting = false
+  allowInsecureHttp = false
 ): CapturedLoginForm | undefined {
   type QueryRoot = Document | ShadowRoot;
 
   const trustedProtocol =
     location.protocol === "https:" ||
     (
-      allowInsecureLoopbackForTesting &&
-      location.protocol === "http:" &&
-      (
-        location.hostname === "localhost" ||
-        location.hostname === "127.0.0.1" ||
-        location.hostname === "[::1]"
-      )
+      allowInsecureHttp &&
+      location.protocol === "http:"
     );
   if (!trustedProtocol || location.origin !== expectedOrigin) {
     return undefined;

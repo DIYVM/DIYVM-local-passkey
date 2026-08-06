@@ -10,7 +10,7 @@ export function allowedPageOrigin(urlValue: string): string | undefined {
 
     if (
       url.protocol !== "https:" ||
-      !isAllowedAmazonHostname(url.hostname) ||
+      url.hostname.length === 0 ||
       url.username !== "" ||
       url.password !== ""
     ) {

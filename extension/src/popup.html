@@ -65,7 +65,7 @@
                 <span>CURRENT ORIGIN</span>
                 <h2>当前页面</h2>
               </div>
-              <small id="current-origin">非 HTTPS 页面</small>
+              <small id="current-origin">非 HTTP/HTTPS 页面</small>
             </div>
             <div class="toolbar">
               <button id="capture-login" type="button">保存当前登录表单</button>
@@ -168,6 +168,22 @@
                 <option value="30">30 分钟</option>
                 <option value="60">60 分钟</option>
               </select>
+            </section>
+
+            <section class="card subsection">
+              <h3>所有 HTTPS 网站的 Passkey</h3>
+              <p>
+                默认关闭。开启后会申请全部 HTTPS 网站的可选权限，并在普通顶层
+                WebAuthn 请求时显示 DIYVM 确认窗口。
+              </p>
+              <label class="check oss-consent">
+                <input id="passkey-all-https" type="checkbox">
+                在所有 HTTPS 网站启用本地 Passkey
+              </label>
+              <small class="oss-warning">
+                选择“改用 Chrome / 系统”、本地 Vault 不可用或网站参数不受支持时，
+                会继续使用浏览器原生验证器。Conditional UI 与跨域 iframe 不接管。
+              </small>
             </section>
 
             <section class="card subsection">
@@ -275,7 +291,10 @@
         </header>
         <input id="password-item-id" type="hidden">
         <label>名称<input id="password-name" maxlength="128" required></label>
-        <label>HTTPS 网站<input id="password-origin" type="url" required></label>
+        <label>HTTP/HTTPS 网站<input id="password-origin" type="url" required></label>
+        <small id="password-origin-security" class="origin-guidance">
+          HTTPS 网站可选择按当前精确 Origin 授权自动填充。
+        </small>
         <label>用户名<input id="password-username" maxlength="512" autocomplete="username"></label>
         <label>
           密码

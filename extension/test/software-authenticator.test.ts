@@ -210,7 +210,7 @@ describe("pure extension WebAuthn", () => {
     assert.equal((await vault.status()).vaultState, "unlocked");
   });
 
-  it("supports Amazon parent-domain RP IDs and non-default HTTPS ports", async () => {
+  it("supports valid parent-domain RP IDs and non-default HTTPS ports", async () => {
     const creation = {
       ...creationOptions(),
       rp: {
@@ -249,7 +249,7 @@ describe("pure extension WebAuthn", () => {
     });
   });
 
-  it("rejects duplicates, cross-site RP IDs, and non-Amazon origins", async () => {
+  it("supports non-Amazon sites and rejects unsafe RP ID scopes", async () => {
     const creation = creationOptions();
     const created = await authenticator.makeCredential(
       "https://amazon.com",
@@ -281,15 +281,51 @@ describe("pure extension WebAuthn", () => {
         error instanceof PureExtensionError &&
         error.code === "SECURITY_ERROR"
     );
+    const generic = await authenticator.makeCredential(
+      "https://webauthn.io",
+      {
+        ...creation,
+        challenge: encodeBase64Url(bytes(32, 202)),
+        rp: { id: "webauthn.io", name: "WebAuthn.io" }
+      }
+    );
+    assert.deepEqual(decodeJson(generic.response.clientDataJSON), {
+      type: "webauthn.create",
+      challenge: encodeBase64Url(bytes(32, 202)),
+      origin: "https://webauthn.io",
+      crossOrigin: false
+    });
     await assert.rejects(
       () =>
-        authenticator.makeCredential("https://example.com", {
+        authenticator.makeCredential("https://login.example.co.uk", {
           ...creation,
-          rp: { id: "example.com", name: "Non-Amazon site" }
+          challenge: encodeBase64Url(bytes(32, 203)),
+          rp: { id: "co.uk", name: "Public suffix" }
+        }),
+      isSecurityError
+    );
+    await assert.rejects(
+      () =>
+        authenticator.makeCredential("https://user.github.io", {
+          ...creation,
+          challenge: encodeBase64Url(bytes(32, 204)),
+          rp: { id: "github.io", name: "Private suffix" }
+        }),
+      isSecurityError
+    );
+  });
+
+  it("falls back for WebAuthn extensions the local authenticator does not support", async () => {
+    await assert.rejects(
+      () =>
+        authenticator.creationDetails("https://example.com", {
+          ...creationOptions(),
+          rp: { id: "example.com", name: "Example" },
+          extensions: { largeBlob: { support: "required" } }
         }),
       (error) =>
         error instanceof PureExtensionError &&
-        error.code === "SECURITY_ERROR"
+        error.code === "NOT_SUPPORTED"
     );
   });
 
@@ -370,6 +406,13 @@ function creationOptions(): SerializedCreationOptions {
       credProps: true
     }
   };
+}
+
+function isSecurityError(error: unknown): boolean {
+  return (
+    error instanceof PureExtensionError &&
+    error.code === "SECURITY_ERROR"
+  );
 }
 
 function bytes(length: number, seed: number): Uint8Array<ArrayBuffer> {

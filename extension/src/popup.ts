@@ -13,7 +13,8 @@ import type { AuditEntry } from "./pure-vault";
 
 import {
   AMAZON_MARKETPLACES,
-  PRIMARY_AMAZON_DOMAIN
+  PRIMARY_AMAZON_DOMAIN,
+  amazonMatchPatterns
 } from "./amazon-sites";
 import {
   generatePassword,
@@ -32,8 +33,10 @@ import {
 } from "./vault-backup";
 import {
   removeAmazonRegion,
+  removeAllHttpsPasskeys,
   removeAutoFillOrigin,
   requestAmazonRegion,
+  requestAllHttpsPasskeys,
   requestAutoFillOrigin
 } from "./site-access";
 import {
@@ -64,10 +67,16 @@ type PopupRequest =
   | {
       type: "savePassword" | "updatePassword";
       password: PasswordInput;
+      confirmInsecureHttp?: boolean;
     }
   | {
-      type: "getPasswordDetails" | "fillPassword";
+      type: "getPasswordDetails";
       itemId: string;
+    }
+  | {
+      type: "fillPassword";
+      itemId: string;
+      confirmInsecureHttp?: boolean;
     }
   | {
       type: "updatePasskeyMetadata";
@@ -90,13 +99,16 @@ type PopupRequest =
     }
   | {
       type:
-        | "captureLoginForm"
         | "syncSiteAccess"
         | "recordBackupExport"
         | "uploadOssBackup"
         | "inspectOssBackup"
         | "restoreOssBackup"
         | "disconnectOss";
+    }
+  | {
+      type: "captureLoginForm";
+      confirmInsecureHttp?: boolean;
     };
 
 type PopupResponse =
@@ -175,6 +187,7 @@ const elements = {
   newMasterPassword: requireInput("new-master-password"),
   confirmMasterPassword: requireInput("confirm-master-password"),
   autoLockMinutes: requireSelect("auto-lock-minutes"),
+  passkeyAllHttps: requireInput("passkey-all-https"),
   amazonRegionList: requireElement("amazon-region-list"),
   addAutoFillOriginForm: requireForm("add-autofill-origin-form"),
   autoFillOrigin: requireInput("autofill-origin"),
@@ -202,6 +215,7 @@ const elements = {
   passwordItemId: requireInput("password-item-id"),
   passwordName: requireInput("password-name"),
   passwordOrigin: requireInput("password-origin"),
+  passwordOriginSecurity: requireElement("password-origin-security"),
   passwordUsername: requireInput("password-username"),
   passwordSecret: requireInput("password-secret"),
   passwordTags: requireInput("password-tags"),
@@ -277,6 +291,7 @@ elements.generatePassword.addEventListener("click", () => {
   }
 });
 elements.passwordSecret.addEventListener("input", renderPasswordStrength);
+elements.passwordOrigin.addEventListener("input", renderPasswordOriginSecurity);
 elements.passwordForm.addEventListener("submit", (event) => {
   event.preventDefault();
   void savePasswordFromDialog();
@@ -313,6 +328,9 @@ elements.autoLockMinutes.addEventListener("change", () => {
   if (value === 5 || value === 15 || value === 30 || value === 60) {
     void updateSettings({ autoLockMinutes: value });
   }
+});
+elements.passkeyAllHttps.addEventListener("change", () => {
+  void togglePasskeyAllHttps(elements.passkeyAllHttps.checked);
 });
 elements.addAutoFillOriginForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -419,11 +437,17 @@ function renderAll(): void {
   elements.autoLockLabel.textContent =
     `${currentStatus.settings.autoLockMinutes}M`;
   elements.extensionVersion.textContent = currentStatus.extensionVersion;
-  elements.currentOrigin.textContent =
-    currentStatus.currentOrigin ?? "非 HTTPS 页面";
+  elements.currentOrigin.textContent = currentStatus.currentOrigin
+    ? `${currentStatus.currentOrigin}${
+        isInsecureHttpOrigin(currentStatus.currentOrigin)
+          ? " · HTTP 不安全"
+          : ""
+      }`
+    : "非 HTTP/HTTPS 页面";
   elements.autoLockMinutes.value = String(
     currentStatus.settings.autoLockMinutes
   );
+  elements.passkeyAllHttps.checked = currentStatus.settings.passkeyAllHttps;
   elements.auditWeak.textContent = String(currentStatus.passwordAudit.weak);
   elements.auditReused.textContent = String(currentStatus.passwordAudit.reused);
   elements.auditStale.textContent = String(currentStatus.passwordAudit.stale);
@@ -499,12 +523,17 @@ function createPasswordItem(
   const riskText = [
     password.weak ? "弱密码" : "",
     password.reused ? "重复使用" : "",
+    isInsecureHttpOrigin(password.origin) ? "HTTP 不安全" : "",
     password.autoFill ? "自动填充" : ""
   ].filter(Boolean).join(" · ");
   metadata.textContent =
     riskText || `更新于 ${formatSecondDate(password.updatedAt)}`;
   metadata.className =
-    password.weak || password.reused ? "risk" : "safe";
+    password.weak ||
+    password.reused ||
+    isInsecureHttpOrigin(password.origin)
+      ? "risk"
+      : "safe";
 
   if (password.deletedAt !== null) {
     actions.append(
@@ -715,8 +744,22 @@ function renderAutoFillOrigins(): void {
 }
 
 async function fillPassword(itemId: string): Promise<void> {
+  const credential = passwords.find((password) => password.itemId === itemId);
+  const insecureHttp = isInsecureHttpOrigin(credential?.origin);
+  if (
+    insecureHttp &&
+    !window.confirm(
+      "当前页面使用未加密的 HTTP 连接。填入的密码可能被网络中的其他人截获，是否仍要手动填充？"
+    )
+  ) {
+    return;
+  }
   const response = await sendPopupRequest(
-    { type: "fillPassword", itemId },
+    {
+      type: "fillPassword",
+      itemId,
+      confirmInsecureHttp: insecureHttp
+    },
     "正在安全填充当前页面"
   );
   if (response?.ok && response.fillResult) {
@@ -725,8 +768,12 @@ async function fillPassword(itemId: string): Promise<void> {
 }
 
 async function captureCurrentLogin(): Promise<void> {
+  const insecureHttp = isInsecureHttpOrigin(currentStatus?.currentOrigin);
   const response = await sendPopupRequest(
-    { type: "captureLoginForm" },
+    {
+      type: "captureLoginForm",
+      confirmInsecureHttp: insecureHttp
+    },
     "正在读取当前登录表单"
   );
   if (response?.ok && response.capturedLogin) {
@@ -776,6 +823,7 @@ function openPasswordDialog(details?: PasswordDetails): void {
   elements.passwordSecret.type = "password";
   elements.togglePassword.textContent = "显示";
   renderPasswordStrength();
+  renderPasswordOriginSecurity();
   elements.passwordDialog.showModal();
 }
 
@@ -788,7 +836,16 @@ function closePasswordDialog(): void {
 async function savePasswordFromDialog(): Promise<void> {
   try {
     const origin = normalizeCredentialOrigin(elements.passwordOrigin.value);
-    let autoFill = elements.passwordAutoFill.checked;
+    const insecureHttp = isInsecureHttpOrigin(origin);
+    if (
+      insecureHttp &&
+      !window.confirm(
+        "该密码将绑定到未加密的 HTTP 网站。以后只能手动填充，并且每次填充都会再次提醒风险。是否继续保存？"
+      )
+    ) {
+      return;
+    }
+    let autoFill = !insecureHttp && elements.passwordAutoFill.checked;
     if (autoFill && !currentStatus?.settings.autoFillOrigins.includes(origin)) {
       const permission = await requestAutoFillOrigin(origin);
       if (!permission.granted) {
@@ -830,7 +887,8 @@ async function savePasswordFromDialog(): Promise<void> {
     const response = await sendPopupRequest(
       {
         type: itemId ? "updatePassword" : "savePassword",
-        password
+        password,
+        confirmInsecureHttp: insecureHttp
       },
       itemId ? "正在更新密码" : "正在加密保存密码"
     );
@@ -893,6 +951,64 @@ async function toggleAmazonRegion(
     setOperationStatus(errorMessage(error), "error");
     await sendPopupRequest({ type: "getExtensionStatus" }, "正在恢复设置");
   }
+}
+
+async function togglePasskeyAllHttps(enabled: boolean): Promise<void> {
+  try {
+    if (enabled) {
+      if (
+        !window.confirm(
+          "开启后，DIYVM Local Passkey 会在所有 HTTPS 网站的顶层页面处理普通 WebAuthn 请求。你仍可在每次确认时改用 Chrome / 系统验证器。是否继续申请全站权限？"
+        )
+      ) {
+        elements.passkeyAllHttps.checked = false;
+        return;
+      }
+      if (!(await requestAllHttpsPasskeys())) {
+        throw new Error("用户未授予所有 HTTPS 网站的可选权限");
+      }
+      await updateSettings({ passkeyAllHttps: true });
+      setOperationStatus(
+        "全站 Passkey 已启用；已打开的网页刷新后生效。",
+        "success"
+      );
+      return;
+    }
+
+    const retained = retainedHttpsPermissions();
+    const result = await removeAllHttpsPasskeys(retained);
+    await updateSettings({ passkeyAllHttps: false });
+    await sendPopupRequest(
+      { type: "syncSiteAccess" },
+      "正在核对保留的逐站点权限"
+    );
+    setOperationStatus(
+      result.retained
+        ? "全站 Passkey 已关闭并撤销全站权限。"
+        : "全站 Passkey 已关闭；部分逐站点权限未重新授予，相关功能已停用。",
+      result.retained ? "success" : "error"
+    );
+  } catch (error) {
+    elements.passkeyAllHttps.checked =
+      currentStatus?.settings.passkeyAllHttps ?? false;
+    setOperationStatus(errorMessage(error), "error");
+    await sendPopupRequest({ type: "getExtensionStatus" }, "正在恢复设置");
+  }
+}
+
+function retainedHttpsPermissions(): string[] {
+  const origins = [
+    ...(currentStatus?.settings.enabledAmazonRegions ?? []).flatMap((domain) =>
+      amazonMatchPatterns(domain)
+    ),
+    ...(currentStatus?.settings.autoFillOrigins ?? []).map(
+      (origin) => `${origin}/*`
+    ),
+    ...(currentStatus?.ossConfiguration
+      ? [ossPermissionPattern(currentStatus.ossConfiguration)]
+      : [])
+  ];
+  return [...new Set(origins)];
 }
 
 async function addAutoFillOrigin(): Promise<void> {
@@ -1274,6 +1390,39 @@ function renderPasswordStrength(): void {
   elements.passwordStrength.className = strength.weak ? "risk" : "safe";
 }
 
+function renderPasswordOriginSecurity(): void {
+  let insecureHttp = false;
+  try {
+    insecureHttp = isInsecureHttpOrigin(
+      normalizeCredentialOrigin(elements.passwordOrigin.value)
+    );
+  } catch {
+    // Keep the normal URL validation responsible for incomplete input.
+  }
+  elements.passwordAutoFill.disabled = insecureHttp;
+  if (insecureHttp) {
+    elements.passwordAutoFill.checked = false;
+    elements.passwordOriginSecurity.textContent =
+      "HTTP 连接未加密：可以保存，但只允许确认后手动填充。";
+    elements.passwordOriginSecurity.className = "origin-warning";
+  } else {
+    elements.passwordOriginSecurity.textContent =
+      "HTTPS 网站可选择按当前精确 Origin 授权自动填充。";
+    elements.passwordOriginSecurity.className = "origin-guidance";
+  }
+}
+
+function isInsecureHttpOrigin(origin: string | null | undefined): boolean {
+  if (!origin) {
+    return false;
+  }
+  try {
+    return new URL(origin).protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 function togglePasswordVisibility(): void {
   const visible = elements.passwordSecret.type === "text";
   elements.passwordSecret.type = visible ? "password" : "text";
@@ -1306,6 +1455,7 @@ function actionButton(
 
 function setBusy(value: boolean): void {
   busy = value;
+  elements.passkeyAllHttps.disabled = value;
   document.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
     if (
       button === elements.closePasswordDialog ||

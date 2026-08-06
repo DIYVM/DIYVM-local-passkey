@@ -28,7 +28,7 @@ describe("pure extension manifest", () => {
   it("uses the production identity and required local-vault permissions", async () => {
     const manifest = await readManifest();
     assert.equal(manifest.name, "DIYVM Local Passkey");
-    assert.equal(manifest.version, "1.1.1");
+    assert.equal(manifest.version, "1.1.2");
     assert.equal(manifest.key, undefined);
     assert.deepEqual(manifest.permissions, [
       "storage",
@@ -38,7 +38,7 @@ describe("pure extension manifest", () => {
     ]);
   });
 
-  it("limits WebAuthn page access to amazon.com", async () => {
+  it("limits install-time WebAuthn page access to amazon.com", async () => {
     const manifest = await readManifest();
     assert.deepEqual(manifest.host_permissions, [
       "https://amazon.com/*",
@@ -46,7 +46,7 @@ describe("pure extension manifest", () => {
     ]);
   });
 
-  it("keeps global Amazon, autofill, and user-owned OSS access optional", async () => {
+  it("keeps global HTTPS, Amazon regions, autofill, and OSS access optional", async () => {
     const manifest = await readManifest();
     assert(manifest.optional_host_permissions?.includes(
       "https://amazon.co.jp/*"

@@ -26,6 +26,11 @@ import {
   type ConfirmationMessage,
   type ConfirmationResponse
 } from "./confirmation-messages";
+import {
+  PRIMARY_AMAZON_DOMAIN,
+  amazonMarketplaceForHostname,
+  amazonMatchPatterns
+} from "./amazon-sites";
 import { allowedPageOrigin } from "./origin-policy";
 import {
   type AuditEntry,
@@ -38,7 +43,12 @@ import {
   type CapturedLoginForm,
   type PasswordFillResult
 } from "./page-password-actions";
-import { syncRegisteredContentScripts } from "./site-access";
+import { normalizeCredentialOrigin } from "./password-model";
+import {
+  ALL_HTTPS_MATCH_PATTERN,
+  sitePermissionTransitionInProgress,
+  syncRegisteredContentScripts
+} from "./site-access";
 import { SoftwareAuthenticator } from "./software-authenticator";
 import { ChromeVaultSettingsStorage } from "./vault-settings";
 import {
@@ -88,10 +98,16 @@ type PopupRequest =
   | {
       type: "savePassword" | "updatePassword";
       password: PasswordInput;
+      confirmInsecureHttp?: boolean;
     }
   | {
-      type: "getPasswordDetails" | "fillPassword";
+      type: "getPasswordDetails";
       itemId: string;
+    }
+  | {
+      type: "fillPassword";
+      itemId: string;
+      confirmInsecureHttp?: boolean;
     }
   | {
       type: "updatePasskeyMetadata";
@@ -114,13 +130,16 @@ type PopupRequest =
     }
   | {
       type:
-        | "captureLoginForm"
         | "syncSiteAccess"
         | "recordBackupExport"
         | "uploadOssBackup"
         | "inspectOssBackup"
         | "restoreOssBackup"
         | "disconnectOss";
+    }
+  | {
+      type: "captureLoginForm";
+      confirmInsecureHttp?: boolean;
     };
 
 type PopupResponse =
@@ -185,7 +204,7 @@ chrome.permissions.onAdded.addListener(() => {
 });
 
 chrome.permissions.onRemoved.addListener(() => {
-  void pruneAndSyncSiteAccess();
+  void handlePermissionsRemoved();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -268,9 +287,17 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
       );
       await scheduleAutoLock();
     } else if (message.type === "savePassword") {
+      requireInsecureHttpConfirmation(
+        message.password.origin,
+        message.confirmInsecureHttp
+      );
       passwordDetails = await opened.vault.savePassword(message.password);
       await scheduleAutoLock();
     } else if (message.type === "updatePassword") {
+      requireInsecureHttpConfirmation(
+        message.password.origin,
+        message.confirmInsecureHttp
+      );
       passwordDetails = await opened.vault.updatePassword(message.password);
       await scheduleAutoLock();
     } else if (message.type === "getPasswordDetails") {
@@ -290,10 +317,15 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
           "找不到可用的密码条目"
         );
       }
-      fillResult = await fillPasswordInActiveTab(credential);
+      fillResult = await fillPasswordInActiveTab(
+        credential,
+        message.confirmInsecureHttp
+      );
       await opened.vault.usePassword(message.itemId);
     } else if (message.type === "captureLoginForm") {
-      capturedLogin = await captureLoginFromActiveTab();
+      capturedLogin = await captureLoginFromActiveTab(
+        message.confirmInsecureHttp
+      );
     } else if (message.type === "updatePasskeyMetadata") {
       await opened.vault.updatePasskeyMetadata(
         message.credentialId,
@@ -317,7 +349,7 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
       await syncRegisteredContentScripts(settings);
       await scheduleAutoLock();
     } else if (message.type === "syncSiteAccess") {
-      await syncSiteAccessFromSettings();
+      await pruneAndSyncSiteAccess();
     } else if (message.type === "recordBackupExport") {
       const settings = await opened.vault.updateSettings({
         lastBackupAt: Date.now()
@@ -496,7 +528,8 @@ async function popupSnapshot(
 }
 
 async function fillPasswordInActiveTab(
-  credential: PasswordDetails
+  credential: PasswordDetails,
+  confirmInsecureHttp = false
 ): Promise<PasswordFillResult> {
   const tab = await activeTab();
   if (tab.id === undefined || !tab.url) {
@@ -505,11 +538,25 @@ async function fillPasswordInActiveTab(
       "无法访问当前标签页"
     );
   }
-  let origin: string;
+  let url: URL;
   try {
-    origin = new URL(tab.url).origin;
+    url = new URL(tab.url);
   } catch {
     throw new PureExtensionError("SECURITY_ERROR", "当前页面地址无效");
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new PureExtensionError(
+      "SECURITY_ERROR",
+      "只允许向 HTTP/HTTPS 页面填充密码"
+    );
+  }
+  const origin = url.origin;
+  const insecureHttp = url.protocol === "http:";
+  if (insecureHttp && !confirmInsecureHttp) {
+    throw new PureExtensionError(
+      "SECURITY_ERROR",
+      "HTTP 页面连接未加密，请确认风险后再手动填充"
+    );
   }
   if (origin !== credential.origin) {
     throw new PureExtensionError(
@@ -517,7 +564,11 @@ async function fillPasswordInActiveTab(
       `该密码只允许填入 ${credential.origin}`
     );
   }
-  const inspections = await inspectLoginFrames(tab.id, credential.origin);
+  const inspections = await inspectLoginFrames(
+    tab.id,
+    credential.origin,
+    insecureHttp
+  );
   const target = inspections
     .filter(
       (inspection) =>
@@ -549,7 +600,8 @@ async function fillPasswordInActiveTab(
       credential.username,
       credential.password,
       credential.origin,
-      false
+      false,
+      insecureHttp
     ]
   });
   const result = results[0]?.result as PasswordFillResult | undefined;
@@ -564,24 +616,27 @@ async function fillPasswordInActiveTab(
 
 async function inspectLoginFrames(
   tabId: number,
-  expectedOrigin: string
+  expectedOrigin: string,
+  allowInsecureHttp: boolean
 ): Promise<Array<chrome.scripting.InjectionResult<PasswordFillResult>>> {
   try {
     return await chrome.scripting.executeScript({
       target: { tabId, allFrames: true },
       func: fillPasswordInPage,
-      args: ["", "", expectedOrigin, true]
+      args: ["", "", expectedOrigin, true, allowInsecureHttp]
     });
   } catch {
     return chrome.scripting.executeScript({
       target: { tabId, frameIds: [0] },
       func: fillPasswordInPage,
-      args: ["", "", expectedOrigin, true]
+      args: ["", "", expectedOrigin, true, allowInsecureHttp]
     });
   }
 }
 
-async function captureLoginFromActiveTab(): Promise<CapturedLoginForm> {
+async function captureLoginFromActiveTab(
+  confirmInsecureHttp = false
+): Promise<CapturedLoginForm> {
   const tab = await activeTab();
   if (tab.id === undefined || !tab.url) {
     throw new PureExtensionError(
@@ -590,10 +645,17 @@ async function captureLoginFromActiveTab(): Promise<CapturedLoginForm> {
     );
   }
   const url = new URL(tab.url);
-  if (url.protocol !== "https:") {
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new PureExtensionError(
       "SECURITY_ERROR",
-      "只允许从 HTTPS 页面读取用户主动选择的登录表单"
+      "只允许从 HTTP/HTTPS 页面读取用户主动选择的登录表单"
+    );
+  }
+  const insecureHttp = url.protocol === "http:";
+  if (insecureHttp && !confirmInsecureHttp) {
+    throw new PureExtensionError(
+      "SECURITY_ERROR",
+      "HTTP 页面连接未加密，请确认风险后再读取登录表单"
     );
   }
   let results: Array<chrome.scripting.InjectionResult<
@@ -603,13 +665,13 @@ async function captureLoginFromActiveTab(): Promise<CapturedLoginForm> {
     results = await chrome.scripting.executeScript({
       target: { tabId: tab.id, allFrames: true },
       func: captureLoginFormInPage,
-      args: [url.origin]
+      args: [url.origin, insecureHttp]
     });
   } catch {
     results = await chrome.scripting.executeScript({
       target: { tabId: tab.id, frameIds: [0] },
       func: captureLoginFormInPage,
-      args: [url.origin]
+      args: [url.origin, insecureHttp]
     });
   }
   const captured = results
@@ -654,7 +716,9 @@ async function activeTabOrigin(): Promise<string | null> {
       return null;
     }
     const url = new URL(tab.url);
-    return url.protocol === "https:" ? url.origin : null;
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.origin
+      : null;
   } catch {
     return null;
   }
@@ -722,6 +786,13 @@ async function syncSiteAccessFromSettings(): Promise<void> {
   await syncRegisteredContentScripts(await storage.read());
 }
 
+async function handlePermissionsRemoved(): Promise<void> {
+  if (await sitePermissionTransitionInProgress()) {
+    return;
+  }
+  await pruneAndSyncSiteAccess();
+}
+
 async function pruneAndSyncSiteAccess(): Promise<void> {
   const storage = new ChromeVaultSettingsStorage();
   const settings = await storage.read();
@@ -745,8 +816,14 @@ async function pruneAndSyncSiteAccess(): Promise<void> {
       autoFillOrigins.push(origin);
     }
   }
+  const passkeyAllHttps =
+    settings.passkeyAllHttps &&
+    await chrome.permissions.contains({
+      origins: [ALL_HTTPS_MATCH_PATTERN]
+    });
   const updated: VaultSettings = {
     ...settings,
+    passkeyAllHttps,
     enabledAmazonRegions,
     autoFillOrigins
   };
@@ -758,10 +835,14 @@ async function handleWebAuthnRequest(
   message: BackgroundWebAuthnRequest,
   sender: chrome.runtime.MessageSender
 ): Promise<ExtensionBridgeResponse> {
-  const origin = allowedSenderOrigin(sender);
+  const origin = await allowedSenderOrigin(sender);
   const ceremonyKey = requestKey(sender, message.requestId);
   if (!origin || !ceremonyKey || activeCeremonies.has(ceremonyKey)) {
-    return bridgeError(message.requestId, "SECURITY_ERROR", "请求来源不受信任");
+    return bridgeError(
+      message.requestId,
+      "USE_NATIVE_AUTHENTICATOR",
+      "当前页面未启用本地通行密钥，将改用 Chrome 或系统验证器"
+    );
   }
 
   activeCeremonies.add(ceremonyKey);
@@ -897,13 +978,13 @@ async function requestConfirmation(
     });
     const pending = pendingConfirmations.get(confirmationId);
     if (!pending || created.id === undefined) {
-      finishConfirmation(confirmationId, { decision: "cancel" });
+      finishConfirmation(confirmationId, { decision: "fallback" });
     } else {
       pending.windowId = created.id;
       confirmationWindows.set(created.id, confirmationId);
     }
   } catch {
-    finishConfirmation(confirmationId, { decision: "cancel" }, false);
+    finishConfirmation(confirmationId, { decision: "fallback" }, false);
   }
 
   return result;
@@ -986,7 +1067,10 @@ function bridgeErrorFromException(
     if (
       error.code === "VAULT_LOCKED" ||
       error.code === "VAULT_NOT_INITIALIZED" ||
-      error.code === "CREDENTIAL_NOT_FOUND"
+      error.code === "CREDENTIAL_NOT_FOUND" ||
+      error.code === "NOT_SUPPORTED" ||
+      error.code === "SECURITY_ERROR" ||
+      error.code === "INVALID_MESSAGE"
     ) {
       return bridgeError(
         requestId,
@@ -1018,13 +1102,41 @@ function bridgeError(
   };
 }
 
-function allowedSenderOrigin(
+async function allowedSenderOrigin(
   sender: chrome.runtime.MessageSender
-): string | undefined {
+): Promise<string | undefined> {
   if (sender.frameId !== 0 || !sender.tab || !sender.url) {
     return undefined;
   }
-  return allowedPageOrigin(sender.url);
+  const origin = allowedPageOrigin(sender.url);
+  if (!origin) {
+    return undefined;
+  }
+  const settings = await new ChromeVaultSettingsStorage().read();
+  if (
+    settings.passkeyAllHttps &&
+    await chrome.permissions.contains({
+      origins: [ALL_HTTPS_MATCH_PATTERN]
+    })
+  ) {
+    return origin;
+  }
+  const marketplace = amazonMarketplaceForHostname(new URL(origin).hostname);
+  if (!marketplace) {
+    return undefined;
+  }
+  if (marketplace.domain === PRIMARY_AMAZON_DOMAIN) {
+    return origin;
+  }
+  if (
+    settings.enabledAmazonRegions.includes(marketplace.domain) &&
+    await chrome.permissions.contains({
+      origins: amazonMatchPatterns(marketplace.domain)
+    })
+  ) {
+    return origin;
+  }
+  return undefined;
 }
 
 function requestKey(
@@ -1048,7 +1160,6 @@ function isPopupRequest(value: unknown): value is PopupRequest {
   if (
     message.type === "getExtensionStatus" ||
     message.type === "lockVault" ||
-    message.type === "captureLoginForm" ||
     message.type === "syncSiteAccess" ||
     message.type === "recordBackupExport" ||
     message.type === "uploadOssBackup" ||
@@ -1057,6 +1168,9 @@ function isPopupRequest(value: unknown): value is PopupRequest {
     message.type === "disconnectOss"
   ) {
     return true;
+  }
+  if (message.type === "captureLoginForm") {
+    return optionalBoolean(message.confirmInsecureHttp);
   }
   if (message.type === "configureOss") {
     return isOssConfigurationInput(message.configuration);
@@ -1071,11 +1185,19 @@ function isPopupRequest(value: unknown): value is PopupRequest {
     );
   }
   if (message.type === "savePassword" || message.type === "updatePassword") {
-    return isPasswordInput(message.password);
+    return (
+      isPasswordInput(message.password) &&
+      optionalBoolean(message.confirmInsecureHttp)
+    );
+  }
+  if (message.type === "fillPassword") {
+    return (
+      isVaultItemId(message.itemId) &&
+      optionalBoolean(message.confirmInsecureHttp)
+    );
   }
   if (
     message.type === "getPasswordDetails" ||
-    message.type === "fillPassword" ||
     message.type === "trashItem" ||
     message.type === "restoreItem" ||
     message.type === "deleteItemPermanently"
@@ -1105,6 +1227,23 @@ function isPopupRequest(value: unknown): value is PopupRequest {
     typeof message.settings === "object" &&
     message.settings !== null
   );
+}
+
+function optionalBoolean(value: unknown): boolean {
+  return value === undefined || typeof value === "boolean";
+}
+
+function requireInsecureHttpConfirmation(
+  originValue: string,
+  confirmed = false
+): void {
+  const origin = normalizeCredentialOrigin(originValue);
+  if (new URL(origin).protocol === "http:" && !confirmed) {
+    throw new PureExtensionError(
+      "SECURITY_ERROR",
+      "HTTP 网站连接未加密，请确认风险后再保存密码"
+    );
+  }
 }
 
 function boundedMasterPassword(value: unknown): value is string {

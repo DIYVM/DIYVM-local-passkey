@@ -21,11 +21,31 @@ describe("password form compatibility wiring", () => {
   it("inspects frames without secrets before filling one selected frame", async () => {
     const background = await source("background.ts");
     assert.match(background, /allFrames: true/u);
-    assert.match(background, /args: \["", "", expectedOrigin, true\]/u);
+    assert.match(
+      background,
+      /args: \["", "", expectedOrigin, true, allowInsecureHttp\]/u
+    );
     assert.match(
       background,
       /frameIds: \[target\.frameId\][\s\S]*credential\.password/u
     );
+  });
+
+  it("requires explicit confirmation for HTTP capture, save, and fill", async () => {
+    const background = await source("background.ts");
+    assert.match(background, /requireInsecureHttpConfirmation/u);
+    assert.match(
+      background,
+      /HTTP 页面连接未加密，请确认风险后再手动填充/u
+    );
+    assert.match(
+      background,
+      /HTTP 页面连接未加密，请确认风险后再读取登录表单/u
+    );
+
+    const popup = await source("popup.ts");
+    assert.match(popup, /confirmInsecureHttp: insecureHttp/u);
+    assert.match(popup, /每次填充都会再次提醒风险/u);
   });
 
   it("runs persistent autofill in matching child frames", async () => {

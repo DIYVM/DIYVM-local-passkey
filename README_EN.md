@@ -3,7 +3,7 @@
   <h1>DIYVM Local Passkey</h1>
   <p>A local-first password and passkey manager with optional backup to user-owned OSS.</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.1.1-2458d3?style=flat-square" alt="Version 1.1.1">
+    <img src="https://img.shields.io/badge/version-1.1.2-2458d3?style=flat-square" alt="Version 1.1.2">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
@@ -17,7 +17,7 @@
 
 ## Overview
 
-DIYVM Local Passkey `1.1.0` expands the original Amazon local-passkey extension into a
+DIYVM Local Passkey `1.1.2` expands the original Amazon local-passkey extension into a
 local password and passkey vault. It requires no DIYVM account or developer-operated
 server. Passwords, passkey private keys, and audit events are encrypted before local
 storage. Users may also manually upload the complete encrypted backup to their own
@@ -29,10 +29,12 @@ unlock. Existing passkeys do not need to be recreated.
 ## Features
 
 - One encrypted vault for passwords and ES256 passkeys.
-- Passkey creation and sign-in on the major Amazon marketplaces worldwide.
-- User-initiated password matching and filling for the current page, without form submission.
+- Passkey creation and sign-in on major Amazon marketplaces by default, with an
+  explicit optional mode for ordinary WebAuthn on all HTTPS sites.
+- User-initiated password capture, matching, and filling on HTTP/HTTPS pages, without form submission.
 - Prioritizes the active login dialog and supports same-origin iframes, open Shadow DOM, and multi-step sign-in.
 - Optional persistent autofill that the user grants one HTTPS origin at a time.
+- HTTP credentials support manual save and fill only, with confirmation before every fill.
 - Add, edit, search, favorite, tag, annotate, rename, trash, restore, and permanently delete.
 - Configurable password generator and local weak, reused, and stale-password checks.
 - Automatic locking after 5, 15, 30, or 60 minutes.
@@ -47,10 +49,11 @@ unlock. Existing passkeys do not need to be recreated.
 - Each password, passkey, and audit record is independently encrypted with AES-256-GCM.
 - The master password is not stored. The unlocked Vault Key lives only in
   `chrome.storage.session` and is subject to automatic locking.
-- Passwords match an exact HTTPS origin. The extension never clicks a sign-in button
-  or submits a form.
-- The passkey page bridge is limited to supported top-level Amazon pages and validates
-  the browser-provided sender origin and RP ID.
+- Passwords match an exact HTTP/HTTPS origin; HTTP and HTTPS credentials never cross-match.
+  The extension never clicks a sign-in button or submits a form, and warns before HTTP fill.
+- The passkey page bridge runs only on authorized top-level HTTPS pages and validates
+  the sender origin, RP ID, and public suffix. Unsupported or declined local operations
+  fall back to the original Chrome/system authenticator.
 - No remote JavaScript, Wasm, or configuration code is loaded.
 
 See [Security Boundary](./docs/security-boundary.md) for the threat model and limitations.
@@ -65,11 +68,11 @@ See [Security Boundary](./docs/security-boundary.md) for the threat model and li
 | `alarms` | Locks the vault after the selected inactivity period |
 | Required `amazon.com` hosts | Preserves the original Amazon US passkey workflow |
 | Optional Amazon hosts | Requested only when the user enables a marketplace |
-| Optional HTTPS hosts | Requested for one exact origin when persistent autofill or a user-owned OSS bucket is enabled |
+| Optional HTTPS hosts | Requested when the user enables all-site Passkey, one exact autofill origin, or a user-owned OSS bucket |
 
-Click-to-fill does not need persistent site access. The `https://*/*` optional pattern only
-allows Chrome to display a permission prompt for the exact site or OSS bucket selected by
-the user; the extension never requests all sites at once.
+Click-to-fill does not need persistent site access. The `https://*/*` capability is optional
+and is requested broadly only after the user explicitly enables Passkey on all HTTPS sites.
+Autofill and OSS access otherwise remain scoped to the exact selected origin or bucket.
 
 ## Supported Amazon marketplaces
 
@@ -94,7 +97,7 @@ without source maps is generated with:
 npm run build:store
 ```
 
-## Version 1.0 limitations
+## Version 1.1.2 limitations
 
 - No multi-device bidirectional sync, shared vaults, payment cards, or identity-profile autofill.
 - A software passkey is not isolated as strongly as a TPM, Secure Enclave, or hardware key.
@@ -102,7 +105,7 @@ npm run build:store
   Fill credentials only on trusted sites whose domain is correct.
 - The project has automated tests and a code-level security review, but it does not claim
   an independent third-party security audit.
-- A previously approved Chrome Web Store version and the `1.1.0` update are separate review
+- A previously approved Chrome Web Store version and the `1.1.2` update are separate review
   submissions. Google must review the update after it is uploaded.
 
 ## Privacy
