@@ -416,8 +416,7 @@ p {
 }
 
 .item-list li,
-.permission-list li,
-.permission-list > label {
+.permission-list li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
@@ -625,27 +624,6 @@ p {
 .permission-list {
   max-height: 230px;
   overflow: auto;
-}
-
-.permission-list > label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-}
-
-.permission-list .region-copy {
-  min-width: 0;
-}
-
-.permission-list strong,
-.permission-list small {
-  display: block;
-}
-
-.permission-list small {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 10.5px;
 }
 
 footer {

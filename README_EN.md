@@ -3,7 +3,7 @@
   <h1>DIYVM Local Passkey</h1>
   <p>A local-first password and passkey manager with optional backup to user-owned OSS.</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.1.2-2458d3?style=flat-square" alt="Version 1.1.2">
+    <img src="https://img.shields.io/badge/version-1.2.0-2458d3?style=flat-square" alt="Version 1.2.0">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
@@ -17,8 +17,8 @@
 
 ## Overview
 
-DIYVM Local Passkey `1.1.2` expands the original Amazon local-passkey extension into a
-local password and passkey vault. It requires no DIYVM account or developer-operated
+DIYVM Local Passkey `1.2.0` is a local password and passkey vault for general websites.
+It requires no DIYVM account or developer-operated
 server. Passwords, passkey private keys, and audit events are encrypted before local
 storage. Users may also manually upload the complete encrypted backup to their own
 Alibaba Cloud OSS bucket.
@@ -29,8 +29,8 @@ unlock. Existing passkeys do not need to be recreated.
 ## Features
 
 - One encrypted vault for passwords and ES256 passkeys.
-- Passkey creation and sign-in on major Amazon marketplaces by default, with an
-  explicit optional mode for ordinary WebAuthn on all HTTPS sites.
+- User-enabled passkey creation and sign-in for ordinary WebAuthn on all HTTPS sites,
+  with no website access granted at installation.
 - User-initiated password capture, matching, and filling on HTTP/HTTPS pages, without form submission.
 - Prioritizes the active login dialog and supports same-origin iframes, open Shadow DOM, and multi-step sign-in.
 - Optional persistent autofill that the user grants one HTTPS origin at a time.
@@ -66,20 +66,11 @@ See [Security Boundary](./docs/security-boundary.md) for the threat model and li
 | `activeTab` | Reads or fills the current login page after an explicit user click |
 | `scripting` | Performs one-time capture/fill and registers scripts for user-approved sites |
 | `alarms` | Locks the vault after the selected inactivity period |
-| Required `amazon.com` hosts | Preserves the original Amazon US passkey workflow |
-| Optional Amazon hosts | Requested only when the user enables a marketplace |
-| Optional HTTPS hosts | Requested when the user enables all-site Passkey, one exact autofill origin, or a user-owned OSS bucket |
+| Optional HTTPS hosts | Requested when the user enables generic Passkey, one exact autofill origin, or a user-owned OSS bucket |
 
 Click-to-fill does not need persistent site access. The `https://*/*` capability is optional
 and is requested broadly only after the user explicitly enables Passkey on all HTTPS sites.
 Autofill and OSS access otherwise remain scoped to the exact selected origin or bucket.
-
-## Supported Amazon marketplaces
-
-The US marketplace is enabled by default. Canada, Mexico, Brazil, the United Kingdom,
-Germany, France, Italy, Spain, the Netherlands, Sweden, Poland, Belgium, Ireland, Türkiye,
-Japan, India, Australia, Singapore, the United Arab Emirates, Saudi Arabia, Egypt, and
-South Africa can be enabled individually, including their HTTPS subdomains.
 
 ## Build and test
 
@@ -97,7 +88,7 @@ without source maps is generated with:
 npm run build:store
 ```
 
-## Version 1.1.2 limitations
+## Version 1.2.0 limitations
 
 - No multi-device bidirectional sync, shared vaults, payment cards, or identity-profile autofill.
 - A software passkey is not isolated as strongly as a TPM, Secure Enclave, or hardware key.
@@ -105,7 +96,7 @@ npm run build:store
   Fill credentials only on trusted sites whose domain is correct.
 - The project has automated tests and a code-level security review, but it does not claim
   an independent third-party security audit.
-- A previously approved Chrome Web Store version and the `1.1.2` update are separate review
+- A previously approved Chrome Web Store version and the `1.2.0` update are separate review
   submissions. Google must review the update after it is uploaded.
 
 ## Privacy

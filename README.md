@@ -3,7 +3,7 @@
   <h1>DIYVM Local Passkey</h1>
   <p>本地优先、可选用户自有 OSS 加密备份的密码与通行密钥管理器。</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.1.2-2458d3?style=flat-square" alt="Version 1.1.2">
+    <img src="https://img.shields.io/badge/version-1.2.0-2458d3?style=flat-square" alt="Version 1.2.0">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
@@ -18,8 +18,8 @@
 
 ## 这是什么
 
-DIYVM Local Passkey `1.1.2` 把原来的 Amazon 本地通行密钥工具扩展为本地密码与
-通行密钥保险库。扩展不需要 DIYVM 账户或开发者服务器；密码、通行密钥私钥和操作
+DIYVM Local Passkey `1.2.0` 是一款面向通用网站的本地密码与通行密钥保险库。
+扩展不需要 DIYVM 账户或开发者服务器；密码、通行密钥私钥和操作
 记录均先加密，再保存到浏览器本地。用户也可以选择把完整加密备份手动上传到自己的
 阿里云 OSS。
 
@@ -28,8 +28,8 @@ DIYVM Local Passkey `1.1.2` 把原来的 Amazon 本地通行密钥工具扩展�
 ## 主要功能
 
 - 在同一个加密保险库中管理密码和 ES256 通行密钥。
-- 默认支持 Amazon 全球主要站点；用户也可主动授权在所有 HTTPS 网站处理普通
-  WebAuthn 通行密钥创建和登录。
+- 用户可主动授权在所有 HTTPS 网站处理普通 WebAuthn 通行密钥创建和登录；安装时
+  不会获得任何网站权限。
 - 当前 HTTP/HTTPS 页面可由用户点击后保存、匹配并填充密码，不自动提交表单。
 - 优先识别当前登录弹窗，并支持同源 iframe、开放式 Shadow DOM 和分步登录。
 - 可为指定 HTTPS 网站单独授权持续自动填充；默认不获取任意网站的长期访问权限。
@@ -75,19 +75,11 @@ flowchart LR
 | `activeTab` | 用户点击扩展后读取或填充当前标签页的登录表单 |
 | `scripting` | 在当前标签页执行一次性捕获/填充，并注册用户授权站点的脚本 |
 | `alarms` | 到达用户设置的时间后自动锁定保险库 |
-| `amazon.com` 主机权限 | 保持原版 Amazon 美国站通行密钥功能 |
-| 其他 Amazon 主机权限（可选） | 只在用户开启对应国家/地区站点时申请 |
-| 其他 HTTPS 主机权限（可选） | 用于用户主动开启全站 Passkey、精确 Origin 自动填充，或连接自己的 OSS Bucket，可随时撤销 |
+| HTTPS 主机权限（可选） | 用于用户主动开启通用 Passkey、精确 Origin 自动填充，或连接自己的 OSS Bucket，可随时撤销 |
 
 点击式填充不需要授予网站长期权限。清单中的 `https://*/*` 是可选能力：默认不申请
-全部网站；只有用户明确开启“在所有 HTTPS 网站启用本地 Passkey”时才请求全站权限。
+全部网站；只有用户明确开启“通用 Passkey”时才请求全站权限。
 精确网站自动填充和 OSS 仍按单个 Origin/Bucket 授权。
-
-## 支持的 Amazon 站点
-
-美国站默认启用。设置中可按需开启加拿大、墨西哥、巴西、英国、德国、法国、意大利、
-西班牙、荷兰、瑞典、波兰、比利时、爱尔兰、土耳其、日本、印度、澳大利亚、新加坡、
-阿联酋、沙特、埃及和南非站及其 HTTPS 子域。
 
 ## 本地开发
 
@@ -115,17 +107,16 @@ npm run build:store
    网站可以按精确 Origin 开启自动填充。
 4. 可选：在“设置”中主动开启所有 HTTPS 网站的 Passkey 权限；拒绝本地方式时会改用
    Chrome/系统验证器，关闭开关会移除全站脚本并撤销全站权限。
-5. 在“设置”中开启需要的 Amazon 国家/地区站点。
-6. 定期导出加密备份，并使用“验证备份”确认文件可读取。
-7. 可选：在“设置”中连接用户自有阿里云 OSS，手动上传、检查或恢复加密备份。
+5. 定期导出加密备份，并使用“验证备份”确认文件可读取。
+6. 可选：在“设置”中连接用户自有阿里云 OSS，手动上传、检查或恢复加密备份。
 
-## 1.1.2 的边界
+## 1.2.0 的边界
 
 - 不提供多设备双向实时同步、共享保险库、支付卡或身份资料自动填充。
 - 软件通行密钥的隔离强度低于 TPM、Secure Enclave 或独立硬件安全密钥。
 - 密码填入网页后，该网页自身的脚本可能读取输入框内容；只应在可信、域名正确的网站填充。
 - 本项目完成了自动化测试和代码级安全检查，但不宣称已通过独立第三方安全审计。
-- Chrome Web Store 中已经发布的旧版本与本仓库的 `1.1.2` 更新是不同审核批次；提交更新后
+- Chrome Web Store 中已经发布的旧版本与本仓库的 `1.2.0` 更新是不同审核批次；提交更新后
   仍需等待 Google 审核。
 
 ## 数据与隐私

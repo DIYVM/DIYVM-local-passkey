@@ -171,10 +171,10 @@
             </section>
 
             <section class="card subsection">
-              <h3>所有 HTTPS 网站的 Passkey</h3>
+              <h3>通用 Passkey</h3>
               <p>
-                默认关闭。开启后会申请全部 HTTPS 网站的可选权限，并在普通顶层
-                WebAuthn 请求时显示 DIYVM 确认窗口。
+                安装时不访问任何网站。开启后会申请全部 HTTPS 网站的可选权限，
+                并在顶层页面的普通 WebAuthn 请求中显示 DIYVM 确认窗口。
               </p>
               <label class="check oss-consent">
                 <input id="passkey-all-https" type="checkbox">
@@ -184,12 +184,6 @@
                 选择“改用 Chrome / 系统”、本地 Vault 不可用或网站参数不受支持时，
                 会继续使用浏览器原生验证器。Conditional UI 与跨域 iframe 不接管。
               </small>
-            </section>
-
-            <section class="card subsection">
-              <h3>Amazon 全球站</h3>
-              <p>美国站始终启用；其他区域站仅在你主动开启后获得权限。</p>
-              <div id="amazon-region-list" class="permission-list"></div>
             </section>
 
             <section class="card subsection">

@@ -2,10 +2,6 @@ import type {
   AutoLockMinutes,
   VaultSettings
 } from "./types";
-import {
-  PRIMARY_AMAZON_DOMAIN,
-  isAmazonMarketplaceDomain
-} from "./amazon-sites";
 
 const SETTINGS_KEY = "localVaultSettingsV1";
 const AUTO_LOCK_VALUES = new Set<AutoLockMinutes>([5, 15, 30, 60]);
@@ -14,7 +10,6 @@ export const DEFAULT_VAULT_SETTINGS: VaultSettings = {
   autoLockMinutes: 15,
   lastBackupAt: null,
   passkeyAllHttps: false,
-  enabledAmazonRegions: [],
   autoFillOrigins: []
 };
 
@@ -74,12 +69,6 @@ export function parseVaultSettings(value: unknown): VaultSettings {
       (candidate.lastBackupAt ?? -1) >= 0)
       ? candidate.lastBackupAt ?? null
       : null;
-  const enabledAmazonRegions = uniqueStrings(
-    candidate.enabledAmazonRegions,
-    (domain) =>
-      domain !== PRIMARY_AMAZON_DOMAIN &&
-      isAmazonMarketplaceDomain(domain)
-  );
   const autoFillOrigins = uniqueStrings(candidate.autoFillOrigins, (origin) => {
     try {
       const url = new URL(origin);
@@ -97,7 +86,6 @@ export function parseVaultSettings(value: unknown): VaultSettings {
     autoLockMinutes,
     lastBackupAt,
     passkeyAllHttps: candidate.passkeyAllHttps === true,
-    enabledAmazonRegions,
     autoFillOrigins
   };
 }

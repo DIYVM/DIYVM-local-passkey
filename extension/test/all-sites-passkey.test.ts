@@ -20,15 +20,29 @@ describe("optional all-HTTPS passkey mode", () => {
     );
   });
 
-  it("registers early top-frame bridges and excludes Amazon duplicate injection", async () => {
+  it("registers generic early top-frame bridges without site-specific exclusions", async () => {
     const siteAccess = await source("site-access.ts");
     assert.match(siteAccess, /id: ALL_HTTPS_MAIN_SCRIPT_ID/u);
     assert.match(siteAccess, /id: ALL_HTTPS_ISOLATED_SCRIPT_ID/u);
-    assert.match(siteAccess, /excludeMatches: excludedAmazonMatches/u);
+    assert.doesNotMatch(siteAccess, /excludeMatches/u);
     assert.match(siteAccess, /runAt: "document_start"/u);
     assert.match(siteAccess, /world: "MAIN"/u);
     assert.match(siteAccess, /world: "ISOLATED"/u);
     assert.match(siteAccess, /allFrames: false/u);
+  });
+
+  it("allows WebAuthn only through the user-enabled generic HTTPS mode", async () => {
+    const background = await source("background.ts");
+    assert.match(background, /settings\.passkeyAllHttps/u);
+    assert.match(background, /origins: \[ALL_HTTPS_MATCH_PATTERN\]/u);
+    assert.doesNotMatch(background, /amazonMarketplaceForHostname/u);
+    assert.doesNotMatch(background, /enabledAmazonRegions/u);
+  });
+
+  it("removes legacy marketplace scripts during the generic-mode migration", async () => {
+    const siteAccess = await source("site-access.ts");
+    assert.match(siteAccess, /"diyvm-amazon-"/u);
+    assert.doesNotMatch(siteAccess, /amazon-sites/u);
   });
 
   it("keeps conditional mediation native and falls back on unsupported requests", async () => {

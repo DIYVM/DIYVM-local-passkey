@@ -1,13 +1,7 @@
-import {
-  AMAZON_MARKETPLACES,
-  PRIMARY_AMAZON_DOMAIN,
-  amazonMatchPatterns,
-  isAmazonMarketplaceDomain
-} from "./amazon-sites";
 import { normalizeCredentialOrigin } from "./password-model";
 import type { VaultSettings } from "./types";
 
-const AMAZON_SCRIPT_PREFIX = "diyvm-amazon-";
+const LEGACY_AMAZON_SCRIPT_PREFIX = "diyvm-amazon-";
 const AUTOFILL_SCRIPT_PREFIX = "diyvm-autofill-";
 const ALL_HTTPS_SCRIPT_PREFIX = "diyvm-passkey-all-https-";
 const ALL_HTTPS_MAIN_SCRIPT_ID = `${ALL_HTTPS_SCRIPT_PREFIX}main`;
@@ -68,54 +62,6 @@ export async function sitePermissionTransitionInProgress(): Promise<boolean> {
   return false;
 }
 
-export async function requestAmazonRegion(domain: string): Promise<boolean> {
-  const normalized = domain.toLowerCase();
-  if (
-    normalized === PRIMARY_AMAZON_DOMAIN ||
-    !isAmazonMarketplaceDomain(normalized)
-  ) {
-    return normalized === PRIMARY_AMAZON_DOMAIN;
-  }
-  return chrome.permissions.request({
-    origins: amazonMatchPatterns(normalized)
-  });
-}
-
-export async function removeAmazonRegion(domain: string): Promise<boolean> {
-  const normalized = domain.toLowerCase();
-  if (
-    normalized === PRIMARY_AMAZON_DOMAIN ||
-    !isAmazonMarketplaceDomain(normalized)
-  ) {
-    return false;
-  }
-  const removed = await chrome.permissions.remove({
-    origins: amazonMatchPatterns(normalized)
-  });
-  await unregisterByIds([
-    amazonMainScriptId(normalized),
-    amazonIsolatedScriptId(normalized)
-  ]);
-  return removed;
-}
-
-export async function grantedAmazonRegions(): Promise<string[]> {
-  const domains: string[] = [];
-  for (const marketplace of AMAZON_MARKETPLACES) {
-    if (marketplace.domain === PRIMARY_AMAZON_DOMAIN) {
-      continue;
-    }
-    if (
-      await chrome.permissions.contains({
-        origins: amazonMatchPatterns(marketplace.domain)
-      })
-    ) {
-      domains.push(marketplace.domain);
-    }
-  }
-  return domains;
-}
-
 export async function requestAutoFillOrigin(originValue: string): Promise<{
   granted: boolean;
   origin: string;
@@ -154,7 +100,7 @@ export async function syncRegisteredContentScripts(
     .map((script) => script.id)
     .filter(
       (id) =>
-        id.startsWith(AMAZON_SCRIPT_PREFIX) ||
+        id.startsWith(LEGACY_AMAZON_SCRIPT_PREFIX) ||
         id.startsWith(AUTOFILL_SCRIPT_PREFIX) ||
         id.startsWith(ALL_HTTPS_SCRIPT_PREFIX)
     );
@@ -167,17 +113,10 @@ export async function syncRegisteredContentScripts(
       origins: [ALL_HTTPS_MATCH_PATTERN]
     })
   ) {
-    const excludedAmazonMatches = [
-      ...amazonMatchPatterns(PRIMARY_AMAZON_DOMAIN),
-      ...settings.enabledAmazonRegions.flatMap((domain) =>
-        isAmazonMarketplaceDomain(domain) ? amazonMatchPatterns(domain) : []
-      )
-    ];
     scripts.push(
       {
         id: ALL_HTTPS_MAIN_SCRIPT_ID,
         matches: [ALL_HTTPS_MATCH_PATTERN],
-        excludeMatches: excludedAmazonMatches,
         js: ["page-bridge.js"],
         runAt: "document_start",
         world: "MAIN",
@@ -187,39 +126,6 @@ export async function syncRegisteredContentScripts(
       {
         id: ALL_HTTPS_ISOLATED_SCRIPT_ID,
         matches: [ALL_HTTPS_MATCH_PATTERN],
-        excludeMatches: excludedAmazonMatches,
-        js: ["content-script.js"],
-        runAt: "document_start",
-        world: "ISOLATED",
-        allFrames: false,
-        persistAcrossSessions: true
-      }
-    );
-  }
-  for (const domain of settings.enabledAmazonRegions) {
-    if (
-      domain === PRIMARY_AMAZON_DOMAIN ||
-      !isAmazonMarketplaceDomain(domain) ||
-      !(await chrome.permissions.contains({
-        origins: amazonMatchPatterns(domain)
-      }))
-    ) {
-      continue;
-    }
-    const matches = amazonMatchPatterns(domain);
-    scripts.push(
-      {
-        id: amazonMainScriptId(domain),
-        matches,
-        js: ["page-bridge.js"],
-        runAt: "document_start",
-        world: "MAIN",
-        allFrames: false,
-        persistAcrossSessions: true
-      },
-      {
-        id: amazonIsolatedScriptId(domain),
-        matches,
         js: ["content-script.js"],
         runAt: "document_start",
         world: "ISOLATED",
@@ -251,14 +157,6 @@ export async function syncRegisteredContentScripts(
   if (scripts.length > 0) {
     await chrome.scripting.registerContentScripts(scripts);
   }
-}
-
-function amazonMainScriptId(domain: string): string {
-  return `${AMAZON_SCRIPT_PREFIX}main-${safeId(domain)}`;
-}
-
-function amazonIsolatedScriptId(domain: string): string {
-  return `${AMAZON_SCRIPT_PREFIX}isolated-${safeId(domain)}`;
 }
 
 function autoFillScriptId(origin: string): string {

@@ -12,11 +12,6 @@ import type {
 import type { AuditEntry } from "./pure-vault";
 
 import {
-  AMAZON_MARKETPLACES,
-  PRIMARY_AMAZON_DOMAIN,
-  amazonMatchPatterns
-} from "./amazon-sites";
-import {
   generatePassword,
   normalizeCredentialOrigin,
   passwordStrength
@@ -32,10 +27,8 @@ import {
   verifyVaultBackup
 } from "./vault-backup";
 import {
-  removeAmazonRegion,
   removeAllHttpsPasskeys,
   removeAutoFillOrigin,
-  requestAmazonRegion,
   requestAllHttpsPasskeys,
   requestAutoFillOrigin
 } from "./site-access";
@@ -188,7 +181,6 @@ const elements = {
   confirmMasterPassword: requireInput("confirm-master-password"),
   autoLockMinutes: requireSelect("auto-lock-minutes"),
   passkeyAllHttps: requireInput("passkey-all-https"),
-  amazonRegionList: requireElement("amazon-region-list"),
   addAutoFillOriginForm: requireForm("add-autofill-origin-form"),
   autoFillOrigin: requireInput("autofill-origin"),
   autoFillOriginList: requireElement("autofill-origin-list"),
@@ -462,7 +454,6 @@ function renderAll(): void {
   renderPasswords();
   renderPasskeys();
   renderAuditLog();
-  renderAmazonRegions();
   renderAutoFillOrigins();
   renderOssConfiguration();
 }
@@ -700,33 +691,6 @@ function renderAuditLog(): void {
   }
 }
 
-function renderAmazonRegions(): void {
-  elements.amazonRegionList.replaceChildren();
-  const enabled = new Set(currentStatus?.settings.enabledAmazonRegions ?? []);
-  for (const marketplace of AMAZON_MARKETPLACES) {
-    const label = document.createElement("label");
-    const copy = document.createElement("span");
-    const title = document.createElement("strong");
-    const detail = document.createElement("small");
-    const checkbox = document.createElement("input");
-    copy.className = "region-copy";
-    title.textContent = `${marketplace.label} · ${marketplace.domain}`;
-    detail.textContent = marketplace.region;
-    checkbox.type = "checkbox";
-    checkbox.checked =
-      marketplace.domain === PRIMARY_AMAZON_DOMAIN ||
-      enabled.has(marketplace.domain);
-    checkbox.dataset.amazonDomain = marketplace.domain;
-    checkbox.disabled = marketplace.domain === PRIMARY_AMAZON_DOMAIN || busy;
-    checkbox.addEventListener("change", () => {
-      void toggleAmazonRegion(marketplace.domain, checkbox.checked);
-    });
-    copy.append(title, detail);
-    label.append(copy, checkbox);
-    elements.amazonRegionList.append(label);
-  }
-}
-
 function renderAutoFillOrigins(): void {
   elements.autoFillOriginList.replaceChildren();
   for (const origin of currentStatus?.settings.autoFillOrigins ?? []) {
@@ -928,31 +892,6 @@ function editPasskeyMetadata(passkey: CredentialSummary): void {
   );
 }
 
-async function toggleAmazonRegion(
-  domain: string,
-  enabled: boolean
-): Promise<void> {
-  if (!currentStatus) {
-    return;
-  }
-  try {
-    let regions = [...currentStatus.settings.enabledAmazonRegions];
-    if (enabled) {
-      if (!(await requestAmazonRegion(domain))) {
-        throw new Error("用户未授予该 Amazon 区域站权限");
-      }
-      regions = [...new Set([...regions, domain])];
-    } else {
-      await removeAmazonRegion(domain);
-      regions = regions.filter((item) => item !== domain);
-    }
-    await updateSettings({ enabledAmazonRegions: regions });
-  } catch (error) {
-    setOperationStatus(errorMessage(error), "error");
-    await sendPopupRequest({ type: "getExtensionStatus" }, "正在恢复设置");
-  }
-}
-
 async function togglePasskeyAllHttps(enabled: boolean): Promise<void> {
   try {
     if (enabled) {
@@ -998,9 +937,6 @@ async function togglePasskeyAllHttps(enabled: boolean): Promise<void> {
 
 function retainedHttpsPermissions(): string[] {
   const origins = [
-    ...(currentStatus?.settings.enabledAmazonRegions ?? []).flatMap((domain) =>
-      amazonMatchPatterns(domain)
-    ),
     ...(currentStatus?.settings.autoFillOrigins ?? []).map(
       (origin) => `${origin}/*`
     ),
@@ -1464,12 +1400,6 @@ function setBusy(value: boolean): void {
       return;
     }
     button.disabled = value;
-  });
-  document.querySelectorAll<HTMLInputElement>(
-    "input[data-amazon-domain]"
-  ).forEach((checkbox) => {
-    checkbox.disabled =
-      checkbox.dataset.amazonDomain === PRIMARY_AMAZON_DOMAIN || value;
   });
 }
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0 — 2026-08-06
+
+### Changed
+
+- Replaced the Amazon-specific passkey permission model with one generic, user-enabled
+  all-HTTPS passkey mode.
+- Removed install-time website access, Amazon marketplace settings, and static
+  Amazon content-script injection.
+- Reduced optional host declarations to `https://*/*`; exact HTTPS autofill and
+  user-owned OSS permissions continue to be requested as runtime subsets.
+- Legacy Amazon-region settings are ignored and legacy dynamically registered scripts
+  are removed during the first access synchronization after updating.
+
 ## 1.1.2 — 2026-08-06
 
 ### Added

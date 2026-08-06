@@ -249,7 +249,7 @@ describe("pure extension WebAuthn", () => {
     });
   });
 
-  it("supports non-Amazon sites and rejects unsafe RP ID scopes", async () => {
+  it("supports general websites and rejects unsafe RP ID scopes", async () => {
     const creation = creationOptions();
     const created = await authenticator.makeCredential(
       "https://amazon.com",

@@ -1,15 +1,14 @@
 # 页面桥接协议 v1
 
-本协议用于扩展接管的通行密钥流程。默认仅覆盖内置 Amazon 站点；用户也可以在设置中
-主动开启“所有 HTTPS 网站”，并在 Chrome 权限窗口中授予可选的网站访问权限。普通密码
+本协议用于扩展接管的通用通行密钥流程。安装时不覆盖任何网站；用户可以在设置中
+主动开启“通用 Passkey”，并在 Chrome 权限窗口中授予全部 HTTPS 网站的可选访问权限。普通密码
 捕获和填充通过 `chrome.scripting.executeScript` 或用户授权的动态 Content Script
 完成，不使用此协议。
 
 ## 通道与边界
 
 - 页面消息通道：`local-passkey:webauthn:v1`。
-- 只接受顶层 HTTPS Origin；后台还会验证该 Origin 是否属于默认 Amazon 站点，或是否
-  已由用户开启全站模式并授予 `https://*/*` 权限。
+- 只接受用户已开启通用模式并授予 `https://*/*` 权限所覆盖的顶层 HTTPS Origin。
 - `requestId` 为 16–128 个 ASCII 字母、数字、`_` 或 `-`。
 - 页面到扩展的 public-key 载荷上限为 512 KiB。
 - 二进制数据统一使用无填充 Base64URL。

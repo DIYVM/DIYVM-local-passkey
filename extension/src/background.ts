@@ -26,11 +26,6 @@ import {
   type ConfirmationMessage,
   type ConfirmationResponse
 } from "./confirmation-messages";
-import {
-  PRIMARY_AMAZON_DOMAIN,
-  amazonMarketplaceForHostname,
-  amazonMatchPatterns
-} from "./amazon-sites";
 import { allowedPageOrigin } from "./origin-policy";
 import {
   type AuditEntry,
@@ -796,16 +791,6 @@ async function handlePermissionsRemoved(): Promise<void> {
 async function pruneAndSyncSiteAccess(): Promise<void> {
   const storage = new ChromeVaultSettingsStorage();
   const settings = await storage.read();
-  const enabledAmazonRegions: string[] = [];
-  for (const domain of settings.enabledAmazonRegions) {
-    if (
-      await chrome.permissions.contains({
-        origins: [`https://${domain}/*`, `https://*.${domain}/*`]
-      })
-    ) {
-      enabledAmazonRegions.push(domain);
-    }
-  }
   const autoFillOrigins: string[] = [];
   for (const origin of settings.autoFillOrigins) {
     if (
@@ -824,7 +809,6 @@ async function pruneAndSyncSiteAccess(): Promise<void> {
   const updated: VaultSettings = {
     ...settings,
     passkeyAllHttps,
-    enabledAmazonRegions,
     autoFillOrigins
   };
   await storage.write(updated);
@@ -1117,21 +1101,6 @@ async function allowedSenderOrigin(
     settings.passkeyAllHttps &&
     await chrome.permissions.contains({
       origins: [ALL_HTTPS_MATCH_PATTERN]
-    })
-  ) {
-    return origin;
-  }
-  const marketplace = amazonMarketplaceForHostname(new URL(origin).hostname);
-  if (!marketplace) {
-    return undefined;
-  }
-  if (marketplace.domain === PRIMARY_AMAZON_DOMAIN) {
-    return origin;
-  }
-  if (
-    settings.enabledAmazonRegions.includes(marketplace.domain) &&
-    await chrome.permissions.contains({
-      origins: amazonMatchPatterns(marketplace.domain)
     })
   ) {
     return origin;

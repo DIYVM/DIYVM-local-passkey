@@ -6,24 +6,24 @@ import { allowedPageOrigin } from "../src/origin-policy";
 describe("allowedPageOrigin", () => {
   it("accepts normalized HTTPS origins", () => {
     assert.equal(
-      allowedPageOrigin("https://amazon.com/ap/signin"),
-      "https://amazon.com"
+      allowedPageOrigin("https://example.com/passkey"),
+      "https://example.com"
     );
     assert.equal(
-      allowedPageOrigin("https://www.amazon.com/ap/signin"),
-      "https://www.amazon.com"
+      allowedPageOrigin("https://login.example.com/account"),
+      "https://login.example.com"
     );
     assert.equal(
-      allowedPageOrigin("https://sellercentral.amazon.com/home"),
-      "https://sellercentral.amazon.com"
+      allowedPageOrigin("https://passkeys.dev/demo"),
+      "https://passkeys.dev"
     );
     assert.equal(
-      allowedPageOrigin("https://www.amazon.co.jp/ap/signin"),
-      "https://www.amazon.co.jp"
+      allowedPageOrigin("https://accounts.example.co.jp/signin"),
+      "https://accounts.example.co.jp"
     );
     assert.equal(
-      allowedPageOrigin("https://sellercentral.amazon.com.au/home"),
-      "https://sellercentral.amazon.com.au"
+      allowedPageOrigin("https://portal.example.com.au/home"),
+      "https://portal.example.com.au"
     );
     assert.equal(
       allowedPageOrigin("https://webauthn.io/"),
@@ -36,10 +36,10 @@ describe("allowedPageOrigin", () => {
   });
 
   it("rejects credentialed, malformed, and insecure URLs", () => {
-    assert.equal(allowedPageOrigin("http://amazon.com/"), undefined);
+    assert.equal(allowedPageOrigin("http://example.com/"), undefined);
     assert.equal(allowedPageOrigin("not a URL"), undefined);
     assert.equal(
-      allowedPageOrigin("https://user:password@amazon.com/"),
+      allowedPageOrigin("https://user:password@example.com/"),
       undefined
     );
   });

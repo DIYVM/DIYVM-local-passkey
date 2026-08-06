@@ -2,42 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  AMAZON_MARKETPLACES,
-  amazonMarketplaceForHostname,
-  amazonMatchPatterns,
-  isAmazonMarketplaceDomain
-} from "../src/amazon-sites";
-import {
   DEFAULT_VAULT_SETTINGS,
   parseVaultSettings
 } from "../src/vault-settings";
 
-describe("Amazon marketplace policy", () => {
-  it("recognizes every declared marketplace and its subdomains", () => {
-    assert.equal(AMAZON_MARKETPLACES.length, 23);
-    for (const marketplace of AMAZON_MARKETPLACES) {
-      assert.equal(isAmazonMarketplaceDomain(marketplace.domain), true);
-      assert.equal(
-        amazonMarketplaceForHostname(`sellercentral.${marketplace.domain}`)
-          ?.domain,
-        marketplace.domain
-      );
-      assert.deepEqual(amazonMatchPatterns(marketplace.domain), [
-        `https://${marketplace.domain}/*`,
-        `https://*.${marketplace.domain}/*`
-      ]);
-    }
-    assert.equal(isAmazonMarketplaceDomain("amazon.example"), false);
-    assert.equal(
-      amazonMarketplaceForHostname("amazon.co.jp.evil.example"),
-      undefined
-    );
-  });
-});
-
 describe("vault settings parser", () => {
-  it("deduplicates and rejects unsafe permissions and invalid lock values", () => {
-    assert.deepEqual(parseVaultSettings({
+  it("deduplicates origins, rejects unsafe values, and drops legacy site lists", () => {
+    const parsed = parseVaultSettings({
       autoLockMinutes: 999,
       lastBackupAt: -1,
       passkeyAllHttps: true,
@@ -54,11 +25,12 @@ describe("vault settings parser", () => {
         "http://example.com",
         "https://user:pass@example.com"
       ]
-    }), {
+    });
+    assert.deepEqual(parsed, {
       ...DEFAULT_VAULT_SETTINGS,
       passkeyAllHttps: true,
-      enabledAmazonRegions: ["amazon.co.jp"],
       autoFillOrigins: ["https://example.com"]
     });
+    assert.equal("enabledAmazonRegions" in parsed, false);
   });
 });

@@ -28,7 +28,7 @@ describe("pure extension manifest", () => {
   it("uses the production identity and required local-vault permissions", async () => {
     const manifest = await readManifest();
     assert.equal(manifest.name, "DIYVM Local Passkey");
-    assert.equal(manifest.version, "1.1.2");
+    assert.equal(manifest.version, "1.2.0");
     assert.equal(manifest.key, undefined);
     assert.deepEqual(manifest.permissions, [
       "storage",
@@ -38,48 +38,18 @@ describe("pure extension manifest", () => {
     ]);
   });
 
-  it("limits install-time WebAuthn page access to amazon.com", async () => {
+  it("requests no install-time website access", async () => {
     const manifest = await readManifest();
-    assert.deepEqual(manifest.host_permissions, [
-      "https://amazon.com/*",
-      "https://*.amazon.com/*"
-    ]);
+    assert.equal(manifest.host_permissions, undefined);
   });
 
-  it("keeps global HTTPS, Amazon regions, autofill, and OSS access optional", async () => {
+  it("declares one generic optional HTTPS capability", async () => {
     const manifest = await readManifest();
-    assert(manifest.optional_host_permissions?.includes(
-      "https://amazon.co.jp/*"
-    ));
-    assert(manifest.optional_host_permissions?.includes(
-      "https://amazon.co.uk/*"
-    ));
-    assert(manifest.optional_host_permissions?.includes("https://*/*"));
+    assert.deepEqual(manifest.optional_host_permissions, ["https://*/*"]);
   });
 
-  it("injects the direct page bridge before site WebAuthn code", async () => {
+  it("does not statically inject scripts into any website", async () => {
     const manifest = await readManifest();
-    assert.deepEqual(manifest.content_scripts, [
-      {
-        matches: [
-          "https://amazon.com/*",
-          "https://*.amazon.com/*"
-        ],
-        js: ["page-bridge.js"],
-        run_at: "document_start",
-        world: "MAIN",
-        all_frames: false
-      },
-      {
-        matches: [
-          "https://amazon.com/*",
-          "https://*.amazon.com/*"
-        ],
-        js: ["content-script.js"],
-        run_at: "document_start",
-        world: "ISOLATED",
-        all_frames: false
-      }
-    ]);
+    assert.equal(manifest.content_scripts, undefined);
   });
 });

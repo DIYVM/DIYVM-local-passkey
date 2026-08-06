@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DIYVM Local Passkey",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Stores encrypted local passwords and passkeys, with optional backup to user-configured Alibaba Cloud OSS.",
   "minimum_chrome_version": "120",
   "permissions": [
@@ -10,55 +10,7 @@
     "scripting",
     "alarms"
   ],
-  "host_permissions": [
-    "https://amazon.com/*",
-    "https://*.amazon.com/*"
-  ],
   "optional_host_permissions": [
-    "https://amazon.ca/*",
-    "https://*.amazon.ca/*",
-    "https://amazon.com.mx/*",
-    "https://*.amazon.com.mx/*",
-    "https://amazon.com.br/*",
-    "https://*.amazon.com.br/*",
-    "https://amazon.co.uk/*",
-    "https://*.amazon.co.uk/*",
-    "https://amazon.de/*",
-    "https://*.amazon.de/*",
-    "https://amazon.fr/*",
-    "https://*.amazon.fr/*",
-    "https://amazon.it/*",
-    "https://*.amazon.it/*",
-    "https://amazon.es/*",
-    "https://*.amazon.es/*",
-    "https://amazon.nl/*",
-    "https://*.amazon.nl/*",
-    "https://amazon.se/*",
-    "https://*.amazon.se/*",
-    "https://amazon.pl/*",
-    "https://*.amazon.pl/*",
-    "https://amazon.com.be/*",
-    "https://*.amazon.com.be/*",
-    "https://amazon.ie/*",
-    "https://*.amazon.ie/*",
-    "https://amazon.com.tr/*",
-    "https://*.amazon.com.tr/*",
-    "https://amazon.co.jp/*",
-    "https://*.amazon.co.jp/*",
-    "https://amazon.in/*",
-    "https://*.amazon.in/*",
-    "https://amazon.com.au/*",
-    "https://*.amazon.com.au/*",
-    "https://amazon.sg/*",
-    "https://*.amazon.sg/*",
-    "https://amazon.ae/*",
-    "https://*.amazon.ae/*",
-    "https://amazon.sa/*",
-    "https://*.amazon.sa/*",
-    "https://amazon.eg/*",
-    "https://*.amazon.eg/*",
-    "https://amazon.co.za/*",
-    "https://*.amazon.co.za/*",
     "https://*/*"
   ],
   "background": {
@@ -80,31 +32,5 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://amazon.com/*",
-        "https://*.amazon.com/*"
-      ],
-      "js": [
-        "page-bridge.js"
-      ],
-      "run_at": "document_start",
-      "world": "MAIN",
-      "all_frames": false
-    },
-    {
-      "matches": [
-        "https://amazon.com/*",
-        "https://*.amazon.com/*"
-      ],
-      "js": [
-        "content-script.js"
-      ],
-      "run_at": "document_start",
-      "world": "ISOLATED",
-      "all_frames": false
-    }
-  ]
+  }
 }
