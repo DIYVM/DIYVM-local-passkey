@@ -28,7 +28,7 @@ describe("pure extension manifest", () => {
   it("uses the production identity and required local-vault permissions", async () => {
     const manifest = await readManifest();
     assert.equal(manifest.name, "DIYVM Local Passkey");
-    assert.equal(manifest.version, "1.2.2");
+    assert.equal(manifest.version, "1.2.3");
     assert.equal(manifest.key, undefined);
     assert.deepEqual(manifest.permissions, [
       "storage",

@@ -16,6 +16,7 @@ await build({
   entryPoints: {
     background: "src/background.ts",
     popup: "src/popup.ts",
+    onboarding: "src/onboarding.ts",
     confirmation: "src/confirmation.ts",
     "page-bridge": "src/page-bridge.ts",
     "content-script": "src/content-script.ts",
@@ -35,6 +36,8 @@ await Promise.all(
     "manifest.json",
     "src/popup.html",
     "src/popup.css",
+    "src/onboarding.html",
+    "src/onboarding.css",
     "src/confirmation.html",
     "src/confirmation.css",
     "src/logo.png"

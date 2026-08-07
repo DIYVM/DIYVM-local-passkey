@@ -188,11 +188,16 @@ chrome.windows.onRemoved.addListener((windowId) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   void chrome.storage.session
     .setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
     .catch(() => undefined);
   void syncSiteAccessFromSettings();
+  if (details.reason === "install") {
+    void chrome.tabs.create({
+      url: chrome.runtime.getURL("onboarding.html")
+    });
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.3 — 2026-08-07
+
+### Added
+
+- Added a first-install onboarding page that explains the local security model,
+  vault creation, password filling, and optional all-HTTPS Passkey access.
+- A user can enable generic Passkey support with one explicit click during
+  onboarding or skip and enable it later from Settings.
+- The onboarding page opens only for a fresh installation, never for updates.
+
 ## 1.2.2 — 2026-08-06
 
 ### Added

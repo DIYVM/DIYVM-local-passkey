@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>欢迎使用 DIYVM Local Passkey</title>
+    <link rel="stylesheet" href="onboarding.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="brand">
+          <img src="logo.png" width="56" height="56" alt="">
+          <div>
+            <span>DIYVM LOCAL PASSKEY</span>
+            <strong>本地密码与通行密钥管理器</strong>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <p class="eyebrow">欢迎使用</p>
+          <h1>先用一分钟完成安全设置</h1>
+          <p>
+            密码和 Passkey 私钥先在本机加密保存，不需要 DIYVM 账户或开发者服务器。
+            你可以现在启用通用 Passkey，也可以稍后在扩展设置中开启。
+          </p>
+        </div>
+      </header>
+
+      <section class="content">
+        <ol class="steps" aria-label="开始使用步骤">
+          <li class="active">
+            <span>1</span>
+            <div>
+              <strong>启用通用 Passkey</strong>
+              <p>允许扩展在 HTTPS 网站处理 WebAuthn 注册与登录请求。</p>
+            </div>
+          </li>
+          <li>
+            <span>2</span>
+            <div>
+              <strong>创建本地保险库</strong>
+              <p>点击工具栏图标，使用至少 8 个字符的主密码创建 Vault。</p>
+            </div>
+          </li>
+          <li>
+            <span>3</span>
+            <div>
+              <strong>按需保存网站密码</strong>
+              <p>点击填充无需长期权限；逐站自动填充默认关闭，可单独授权。</p>
+            </div>
+          </li>
+        </ol>
+
+        <section class="permission-card">
+          <div class="permission-heading">
+            <div class="shield" aria-hidden="true">✓</div>
+            <div>
+              <span>OPTIONAL SITE ACCESS</span>
+              <h2>在所有 HTTPS 网站启用本地 Passkey</h2>
+            </div>
+          </div>
+          <p>
+            点击启用后，Chrome 会显示网站访问权限确认。此权限只用于注入本地
+            WebAuthn 桥接脚本；通行密钥操作仍需逐次确认。
+          </p>
+          <ul>
+            <li>不读取网页浏览历史</li>
+            <li>不会保存主密码</li>
+            <li>不上传密码或 Passkey</li>
+            <li>可随时在设置中关闭并撤销权限</li>
+          </ul>
+          <div class="actions">
+            <button id="enable-passkeys" type="button">启用通用 Passkey</button>
+            <button id="skip" class="secondary" type="button">暂时跳过</button>
+          </div>
+          <p id="status" class="status" aria-live="polite"></p>
+        </section>
+
+        <footer>
+          <span>LOCAL FIRST · AES-256-GCM · ARGON2ID</span>
+          <span id="version"></span>
+        </footer>
+      </section>
+    </main>
+    <script type="module" src="onboarding.js"></script>
+  </body>
+</html>
