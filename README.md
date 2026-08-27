@@ -3,7 +3,7 @@
   <h1>DIYVM Local Passkey</h1>
   <p>本地优先、可选用户自有 OSS 加密备份的密码与通行密钥管理器。</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.2.5-2458d3?style=flat-square" alt="Version 1.2.5">
+    <img src="https://img.shields.io/badge/version-1.2.6-2458d3?style=flat-square" alt="Version 1.2.6">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
@@ -18,7 +18,7 @@
 
 ## 这是什么
 
-DIYVM Local Passkey `1.2.5` 是一款面向通用网站的本地密码与通行密钥保险库。
+DIYVM Local Passkey `1.2.6` 是一款面向通用网站的本地密码与通行密钥保险库。
 扩展不需要 DIYVM 账户或开发者服务器；密码、通行密钥私钥和操作
 记录均先加密，再保存到浏览器本地。用户也可以选择把完整加密备份手动上传到自己的
 阿里云 OSS。
@@ -29,7 +29,8 @@ DIYVM Local Passkey `1.2.5` 是一款面向通用网站的本地密码与通行�
 
 - 在同一个加密保险库中管理密码和 ES256 通行密钥。
 - 用户可主动授权在所有 HTTPS 网站处理 WebAuthn 通行密钥创建和登录；当登录页发起
-  Conditional UI 且本地有匹配凭据时，会在登录输入框旁显示 DIYVM Passkey 候选项。
+  Conditional UI 且本地有匹配凭据时，会在登录输入框下方显示 DIYVM Passkey 账户候选
+  列表，使用别名或显示名称、脱敏账号和最近使用时间帮助区分多个账户。
   安装时不会获得任何网站权限。
 - 当前 HTTP/HTTPS 页面可由用户点击后保存、匹配并填充密码，不自动提交表单。
 - 优先识别当前登录弹窗，并支持同源 iframe、开放式 Shadow DOM 和分步登录。
@@ -120,7 +121,7 @@ npm run build:store
 5. 定期导出加密备份，并使用“验证备份”确认文件可读取。
 6. 可选：在“设置”中连接用户自有阿里云 OSS，手动上传、检查或恢复加密备份。
 
-## 1.2.5 的边界
+## 1.2.6 的边界
 
 - 不提供多设备双向实时同步、共享保险库、支付卡或身份资料自动填充。
 - 软件通行密钥的隔离强度低于 TPM、Secure Enclave 或独立硬件安全密钥。
@@ -128,7 +129,7 @@ npm run build:store
   下访问保险库；共享电脑上不应启用。
 - 密码填入网页后，该网页自身的脚本可能读取输入框内容；只应在可信、域名正确的网站填充。
 - 本项目完成了自动化测试和代码级安全检查，但不宣称已通过独立第三方安全审计。
-- Chrome Web Store 中已经发布的旧版本与本仓库的 `1.2.5` 更新是不同审核批次；提交更新后
+- Chrome Web Store 中已经发布的旧版本与本仓库的 `1.2.6` 更新是不同审核批次；提交更新后
   仍需等待 Google 审核。
 
 ## 数据与隐私

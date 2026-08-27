@@ -186,6 +186,7 @@ describe("pure extension WebAuthn", () => {
       "https://www.amazon.com",
       creationOptions()
     );
+    await vault.updatePasskeyMetadata(created.id, { alias: "工作账户" });
     const request: SerializedRequestOptions = {
       challenge: encodeBase64Url(bytes(32, 91)),
       rpId: "amazon.com",
@@ -200,6 +201,8 @@ describe("pure extension WebAuthn", () => {
       details.credentials.map((credential) => credential.credentialId),
       [created.id]
     );
+    assert.equal(details.credentials[0]?.alias, "工作账户");
+    assert.equal(details.credentials[0]?.userName, "tester@example.com");
 
     await vault.trashItem(created.id);
     await assert.rejects(

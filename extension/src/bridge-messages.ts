@@ -74,6 +74,7 @@ export interface BackgroundWebAuthnRequest {
   requestId: string;
   operation: BridgeOperation;
   publicKey: SerializedCreationOptions | SerializedRequestOptions;
+  selectedCredentialId?: string;
 }
 
 export interface BackgroundConditionalProbeRequest {
@@ -82,10 +83,18 @@ export interface BackgroundConditionalProbeRequest {
   publicKey: SerializedRequestOptions;
 }
 
+export interface ConditionalPasskeyCandidate {
+  credentialId: string;
+  label: string;
+  maskedUserName: string;
+  lastUsedAt: number | null;
+}
+
 export type BackgroundConditionalProbeResponse =
   | {
       ok: true;
-      available: boolean;
+      candidates: ConditionalPasskeyCandidate[];
+      totalCount: number;
     }
   | {
       ok: false;

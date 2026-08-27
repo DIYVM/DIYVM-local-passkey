@@ -42,6 +42,7 @@ export interface AssertionCandidate {
   rpId: string;
   userName: string;
   displayName: string;
+  alias: string;
   lastUsedAt: number | null;
 }
 
@@ -119,6 +120,7 @@ export class SoftwareAuthenticator {
         rpId: credential.rpId,
         userName: credential.userName,
         displayName: credential.displayName,
+        alias: credential.alias,
         lastUsedAt: credential.lastUsedAt
       }))
     };

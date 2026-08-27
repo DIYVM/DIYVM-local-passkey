@@ -1,14 +1,36 @@
 # Changelog
 
+## 1.2.6 — 2026-08-27
+
+### Added
+
+- Conditional WebAuthn now shows a multi-account DIYVM Passkey list below the most likely login
+  field. Accounts are identified by alias/display name, a masked identifier, and relative
+  last-used time, ordered by recent use.
+- Up to eight recent accounts are available directly; additional accounts remain selectable in
+  the trusted confirmation window. Selecting a page candidate preselects the same account there.
+
+### Changed
+
+- Multi-account confirmation selectors are enabled when more than one matching credential exists.
+
+### Security
+
+- The page list remains isolated in a closed Shadow DOM. Only a bounded set of display labels,
+  masked account identifiers, and relative usage times is rendered; raw credential IDs, user
+  handles, and private keys are never rendered into the page DOM.
+- A page-selected credential is validated again against the current RP ID and allow-list before
+  it can be preselected in the confirmation window.
+
 ## 1.2.5 — 2026-08-27
 
 ### Added
 
 - When a website starts a conditional WebAuthn sign-in and the unlocked vault contains a
-  matching RP ID, the login page now shows a DIYVM Passkey candidate next to the most likely
+  matching RP ID, the login page shows a generic DIYVM Passkey candidate below the most likely
   account field.
-- Selecting the candidate opens the existing explicit confirmation window before the local
-  passkey is used. Matching continues to follow WebAuthn RP ID rules instead of exact login URLs.
+- Selecting the candidate opens the explicit confirmation window before the local passkey is
+  used. Matching follows WebAuthn RP ID rules instead of exact login URLs.
 
 ### Security
 

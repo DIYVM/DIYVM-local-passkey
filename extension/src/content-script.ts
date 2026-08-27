@@ -6,10 +6,12 @@ import {
   type BackgroundConditionalProbeRequest,
   type BackgroundConditionalProbeResponse,
   type BackgroundWebAuthnRequest,
+  type ConditionalPasskeyCandidate,
   type ExtensionBridgeResponse,
   type PageBridgeMessage,
   type PageBridgeRequest
 } from "./bridge-messages";
+import { formatConditionalLastUsed } from "./conditional-passkey-display";
 import { sendRuntimeMessage } from "./runtime-message";
 
 const MAX_BRIDGE_MESSAGE_BYTES = 512 * 1024;
@@ -70,12 +72,16 @@ function handlePageMessage(event: MessageEvent<unknown>): void {
   sendWebAuthnRequest(message);
 }
 
-function sendWebAuthnRequest(message: PageBridgeRequest): void {
+function sendWebAuthnRequest(
+  message: PageBridgeRequest,
+  selectedCredentialId?: string
+): void {
   const request: BackgroundWebAuthnRequest = {
     kind: "localPasskeyWebAuthn",
     requestId: message.requestId,
     operation: message.operation,
-    publicKey: message.publicKey
+    publicKey: message.publicKey,
+    ...(selectedCredentialId ? { selectedCredentialId } : {})
   };
 
   void sendRuntimeMessage<ExtensionBridgeResponse>(request)
@@ -146,7 +152,7 @@ async function probeConditionalRequest(
     ) {
       return;
     }
-    if (!response.ok || !response.available) {
+    if (!response.ok || response.candidates.length === 0) {
       finishConditionalWithNative(
         state,
         response.ok
@@ -155,9 +161,13 @@ async function probeConditionalRequest(
       );
       return;
     }
-    state.disposePrompt = showConditionalPasskeyPrompt(() => {
-      activateConditionalRequest(state);
-    });
+    state.disposePrompt = showConditionalPasskeyPrompt(
+      response.candidates,
+      response.totalCount,
+      (credentialId) => {
+        activateConditionalRequest(state, credentialId);
+      }
+    );
   } catch (error) {
     if (conditionalRequests.get(state.message.requestId) === state) {
       finishConditionalWithNative(state, runtimeFailureMessage(error));
@@ -165,7 +175,10 @@ async function probeConditionalRequest(
   }
 }
 
-function activateConditionalRequest(state: ConditionalRequest): void {
+function activateConditionalRequest(
+  state: ConditionalRequest,
+  selectedCredentialId?: string
+): void {
   if (
     state.activated ||
     conditionalRequests.get(state.message.requestId) !== state ||
@@ -176,7 +189,7 @@ function activateConditionalRequest(state: ConditionalRequest): void {
   state.activated = true;
   state.disposePrompt?.();
   delete state.disposePrompt;
-  sendWebAuthnRequest(state.message);
+  sendWebAuthnRequest(state.message, selectedCredentialId);
 }
 
 function finishConditionalWithNative(
@@ -204,7 +217,11 @@ function disposeConditionalRequest(requestId: string): void {
   request.disposePrompt?.();
 }
 
-function showConditionalPasskeyPrompt(onActivate: () => void): () => void {
+function showConditionalPasskeyPrompt(
+  candidates: ConditionalPasskeyCandidate[],
+  totalCount: number,
+  onActivate: (credentialId?: string) => void
+): () => void {
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "false");
   host.style.setProperty("position", "fixed", "important");
@@ -220,51 +237,125 @@ function showConditionalPasskeyPrompt(onActivate: () => void): () => void {
   const style = document.createElement("style");
   style.textContent = `
     :host { all: initial; color-scheme: light dark; }
+    .panel {
+      box-sizing: border-box;
+      overflow: hidden;
+      width: 100%;
+      border: 1px solid rgba(72, 126, 218, .58);
+      border-radius: 10px;
+      background: color-mix(in srgb, Canvas 96%, #1d5fc4 4%);
+      color: CanvasText;
+      box-shadow: 0 12px 30px rgba(8, 32, 74, .20), 0 3px 8px rgba(8, 32, 74, .12);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+    .heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-bottom: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+      color: color-mix(in srgb, CanvasText 72%, transparent);
+      font: 700 10px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .heading strong { color: #2873db; font: inherit; }
+    .accounts { overflow-y: auto; max-height: 236px; }
     button {
       all: initial;
       box-sizing: border-box;
-      display: inline-flex;
+      display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 8px;
+      gap: 10px;
       width: 100%;
-      min-height: 36px;
-      padding: 6px 11px 6px 7px;
-      border: 1px solid rgba(72, 126, 218, .58);
-      border-radius: 9px;
-      background: color-mix(in srgb, Canvas 94%, #1d5fc4 6%);
+      min-height: 54px;
+      padding: 8px 10px;
+      border: 0;
+      border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+      background: transparent;
       color: CanvasText;
-      box-shadow: 0 8px 24px rgba(8, 32, 74, .18), 0 2px 6px rgba(8, 32, 74, .12);
-      font: 600 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      letter-spacing: .01em;
+      font: 600 12px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
       cursor: pointer;
-      white-space: nowrap;
       user-select: none;
     }
-    button:hover { border-color: #2873db; background: color-mix(in srgb, Canvas 88%, #2873db 12%); }
-    button:focus-visible { outline: 3px solid rgba(45, 126, 235, .34); outline-offset: 2px; }
+    button:last-child { border-bottom: 0; }
+    button:hover { background: color-mix(in srgb, Canvas 88%, #2873db 12%); }
+    button:focus-visible { position: relative; outline: 3px solid rgba(45, 126, 235, .34); outline-offset: -3px; }
     .mark {
+      flex: 0 0 auto;
       display: grid;
       place-items: center;
-      width: 23px;
-      height: 23px;
-      border-radius: 7px;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
       background: linear-gradient(145deg, #153d83, #2f83df);
       color: white;
-      font: 800 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 800 15px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
+    .copy { display: grid; min-width: 0; gap: 3px; text-align: left; }
+    .account-name { overflow: hidden; font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+    .account-meta { overflow: hidden; color: color-mix(in srgb, CanvasText 62%, transparent); font-size: 10px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+    .more { min-height: 38px; justify-content: center; color: #2873db; font-size: 11px; }
   `;
-  const button = document.createElement("button");
-  button.type = "button";
-  button.setAttribute("aria-label", "使用 DIYVM 本地通行密钥登录");
-  button.title = "使用 DIYVM 本地通行密钥登录";
-  const mark = document.createElement("span");
-  mark.className = "mark";
-  mark.textContent = "D";
-  const label = document.createElement("span");
-  label.textContent = "使用 DIYVM Passkey";
-  button.append(mark, label);
-  shadow.append(style, button);
+  const panel = document.createElement("section");
+  panel.className = "panel";
+  panel.setAttribute("aria-label", "DIYVM 本地通行密钥账户");
+  const heading = document.createElement("div");
+  heading.className = "heading";
+  const headingLabel = document.createElement("strong");
+  headingLabel.textContent = "DIYVM Passkey";
+  const accountCount = document.createElement("span");
+  accountCount.textContent = `${totalCount} 个账户`;
+  heading.append(headingLabel, accountCount);
+  const accounts = document.createElement("div");
+  accounts.className = "accounts";
+
+  for (const candidate of candidates) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute(
+      "aria-label",
+      `${candidate.label}，${candidate.maskedUserName}，${formatConditionalLastUsed(candidate.lastUsedAt)}`
+    );
+    const mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent =
+      Array.from(candidate.label.trim())[0]?.toUpperCase() ?? "D";
+    const copy = document.createElement("span");
+    copy.className = "copy";
+    const name = document.createElement("span");
+    name.className = "account-name";
+    name.textContent = candidate.label;
+    const meta = document.createElement("span");
+    meta.className = "account-meta";
+    meta.textContent = `${candidate.maskedUserName} · ${formatConditionalLastUsed(candidate.lastUsedAt)}`;
+    copy.append(name, meta);
+    button.append(mark, copy);
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onActivate(candidate.credentialId);
+    });
+    accounts.append(button);
+  }
+
+  if (totalCount > candidates.length) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "more";
+    more.textContent = `查看另外 ${totalCount - candidates.length} 个账户…`;
+    more.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onActivate();
+    });
+    accounts.append(more);
+  }
+
+  panel.append(heading, accounts);
+  shadow.append(style, panel);
 
   let disposed = false;
   let frame = 0;
@@ -282,12 +373,7 @@ function showConditionalPasskeyPrompt(onActivate: () => void): () => void {
   const stopPageHandling = (event: Event): void => {
     event.stopPropagation();
   };
-  button.addEventListener("pointerdown", stopPageHandling);
-  button.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onActivate();
-  });
+  panel.addEventListener("pointerdown", stopPageHandling);
 
   const onFocus = (event: FocusEvent): void => {
     const input = event.composedPath().find(
@@ -328,7 +414,11 @@ function showConditionalPasskeyPrompt(onActivate: () => void): () => void {
         ? focusedInput
         : findBestLoginInput();
     if (!input) {
-      host.style.setProperty("width", "190px", "important");
+      host.style.setProperty(
+        "width",
+        `${Math.max(1, Math.min(320, window.innerWidth - 36))}px`,
+        "important"
+      );
       host.style.setProperty("right", "18px", "important");
       host.style.setProperty("bottom", "18px", "important");
       host.style.removeProperty("left");
@@ -338,19 +428,19 @@ function showConditionalPasskeyPrompt(onActivate: () => void): () => void {
 
     const rect = input.getBoundingClientRect();
     const promptWidth = Math.min(
-      Math.max(rect.width, 178),
-      Math.max(178, window.innerWidth - 16)
+      Math.max(rect.width, 220),
+      Math.max(1, window.innerWidth - 16)
     );
-    const promptHeight = 38;
     const left = Math.min(
       window.innerWidth - promptWidth - 8,
       Math.max(8, rect.left)
     );
+    host.style.setProperty("width", `${Math.round(promptWidth)}px`, "important");
+    const promptHeight = Math.max(54, host.getBoundingClientRect().height);
     let top = rect.bottom + 6;
     if (top + promptHeight > window.innerHeight - 8) {
       top = Math.max(8, rect.top - promptHeight - 6);
     }
-    host.style.setProperty("width", `${Math.round(promptWidth)}px`, "important");
     host.style.setProperty("left", `${Math.round(left)}px`, "important");
     host.style.setProperty("top", `${Math.round(top)}px`, "important");
     host.style.removeProperty("right");

@@ -23,6 +23,10 @@ import {
   type ExtensionBridgeResponse
 } from "./bridge-messages";
 import {
+  conditionalAccountLabel,
+  maskAccountIdentifier
+} from "./conditional-passkey-display";
+import {
   isConfirmationId,
   type ConfirmationDetails,
   type ConfirmationMessage,
@@ -71,6 +75,7 @@ const extensionVersion = chrome.runtime.getManifest().version;
 const CONFIRMATION_TIMEOUT_MS = 120_000;
 const AUTO_LOCK_ALARM = "diyvm-local-vault-auto-lock";
 const DEVICE_UNLOCK_BLOCK_KEY = "diyvmDeviceUnlockBlockedForSession";
+const MAX_CONDITIONAL_CANDIDATES = 8;
 
 interface ExtensionStatus extends VaultStatus {
   extensionVersion: string;
@@ -924,7 +929,8 @@ async function handleWebAuthnRequest(
       message.requestId,
       message.operation,
       origin,
-      message.publicKey
+      message.publicKey,
+      message.selectedCredentialId
     );
     if (canceledCeremonies.has(ceremonyKey)) {
       return bridgeError(message.requestId, "ABORTED", "请求已取消");
@@ -964,22 +970,37 @@ async function handleConditionalProbeRequest(
   const origin = await allowedSenderOrigin(sender);
   const probeKey = requestKey(sender, message.requestId);
   if (!origin || !probeKey) {
-    return { ok: true, available: false };
+    return { ok: true, candidates: [], totalCount: 0 };
   }
 
   const opened = await openPureVault();
   try {
     if ((await opened.vault.status()).vaultState !== "unlocked") {
-      return { ok: true, available: false };
+      return { ok: true, candidates: [], totalCount: 0 };
     }
     const authenticator = new SoftwareAuthenticator(opened.vault);
     const details = await authenticator.assertionDetails(
       origin,
       message.publicKey
     );
-    return { ok: true, available: details.credentials.length > 0 };
+    return {
+      ok: true,
+      candidates: details.credentials
+        .slice(0, MAX_CONDITIONAL_CANDIDATES)
+        .map((credential) => ({
+          credentialId: credential.credentialId,
+          label: conditionalAccountLabel(
+            credential.alias,
+            credential.displayName,
+            credential.userName
+          ),
+          maskedUserName: maskAccountIdentifier(credential.userName),
+          lastUsedAt: credential.lastUsedAt
+        })),
+      totalCount: details.credentials.length
+    };
   } catch {
-    return { ok: true, available: false };
+    return { ok: true, candidates: [], totalCount: 0 };
   } finally {
     opened.close();
   }
@@ -989,7 +1010,8 @@ async function performCeremony(
   bridgeRequestId: string,
   operation: "create" | "get",
   origin: string,
-  publicKey: SerializedCreationOptions | SerializedRequestOptions
+  publicKey: SerializedCreationOptions | SerializedRequestOptions,
+  selectedCredentialId?: string
 ): Promise<SerializedCreatedCredential | SerializedAssertionCredential> {
   const opened = await openPureVault();
   try {
@@ -1018,9 +1040,25 @@ async function performCeremony(
             origin,
             publicKey as SerializedRequestOptions
           );
+    if (
+      selectedCredentialId &&
+      (details.operation !== "get" ||
+        !details.credentials.some(
+          (credential) => credential.credentialId === selectedCredentialId
+        ))
+    ) {
+      throw new PureExtensionError(
+        "CREDENTIAL_NOT_FOUND",
+        "预选通行密钥与当前网站请求不匹配"
+      );
+    }
+    const confirmationDetails: ConfirmationDetails =
+      details.operation === "get" && selectedCredentialId
+        ? { ...details, selectedCredentialId }
+        : details;
     const confirmation = await requestConfirmation(
       bridgeRequestId,
-      details
+      confirmationDetails
     );
     if (confirmation.decision === "fallback") {
       throw new PureExtensionError(
@@ -1468,6 +1506,10 @@ function isWebAuthnRequest(
     message.kind === "localPasskeyWebAuthn" &&
     typeof message.requestId === "string" &&
     (message.operation === "create" || message.operation === "get") &&
+    (message.selectedCredentialId === undefined ||
+      (message.operation === "get" &&
+        typeof message.selectedCredentialId === "string" &&
+        /^[A-Za-z0-9_-]{16,136}$/u.test(message.selectedCredentialId))) &&
     typeof message.publicKey === "object" &&
     message.publicKey !== null
   );

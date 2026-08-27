@@ -74,10 +74,24 @@ function renderDetails(details: ConfirmationDetails): void {
       ...details.credentials.map((credential) =>
         option(
           credential.credentialId,
-          `${credential.displayName || credential.userName} · ${credential.userName}`
+          confirmationAccountLabel(
+            credential.alias,
+            credential.displayName,
+            credential.userName
+          )
         )
       )
     );
+    if (
+      details.selectedCredentialId &&
+      details.credentials.some(
+        (credential) =>
+          credential.credentialId === details.selectedCredentialId
+      )
+    ) {
+      elements.account.value = details.selectedCredentialId;
+    }
+    elements.account.disabled = details.credentials.length <= 1;
   }
   setButtonsDisabled(false);
 }
@@ -129,6 +143,15 @@ function option(value: string, label: string): HTMLOptionElement {
   element.value = value;
   element.textContent = label;
   return element;
+}
+
+function confirmationAccountLabel(
+  alias: string,
+  displayName: string,
+  userName: string
+): string {
+  const primary = alias.trim() || displayName.trim() || userName;
+  return primary === userName ? userName : `${primary} · ${userName}`;
 }
 
 function requireElement(id: string): HTMLElement {

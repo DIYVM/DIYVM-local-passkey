@@ -5,7 +5,7 @@ import type {
 
 export type ConfirmationDetails =
   | CreationConfirmationDetails
-  | AssertionConfirmationDetails;
+  | (AssertionConfirmationDetails & { selectedCredentialId?: string });
 
 export interface GetConfirmationRequest {
   type: "getConfirmation";
