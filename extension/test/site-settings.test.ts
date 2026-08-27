@@ -18,6 +18,12 @@ describe("vault settings parser", () => {
     assert.equal(parseVaultSettings({ rememberSession: "yes" }).rememberSession, false);
   });
 
+  it("keeps trusted-device unlock disabled unless explicitly selected", () => {
+    assert.equal(parseVaultSettings({}).rememberDevice, false);
+    assert.equal(parseVaultSettings({ rememberDevice: true }).rememberDevice, true);
+    assert.equal(parseVaultSettings({ rememberDevice: "yes" }).rememberDevice, false);
+  });
+
   it("deduplicates origins, rejects unsafe values, and drops legacy site lists", () => {
     const parsed = parseVaultSettings({
       autoLockMinutes: 999,

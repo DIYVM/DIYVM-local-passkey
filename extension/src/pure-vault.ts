@@ -44,6 +44,12 @@ import {
   isExistingMasterPassword,
   isNewMasterPassword
 } from "./master-password";
+import {
+  ChromeDeviceUnlockStorage,
+  type DeviceUnlockStorage,
+  rememberVaultKeyOnDevice,
+  restoreVaultKeyFromDevice
+} from "./device-unlock";
 
 const LEGACY_PBKDF2_ITERATIONS = 600_000;
 const ARGON2_ITERATIONS = 2;
@@ -217,7 +223,9 @@ export class PureVault {
     private readonly sessionStorage: VaultSessionStorage,
     private readonly now: () => number = Date.now,
     private readonly settingsStorage: VaultSettingsStorage =
-      defaultSettingsStorage()
+      defaultSettingsStorage(),
+    private readonly deviceUnlockStorage: DeviceUnlockStorage =
+      defaultDeviceUnlockStorage()
   ) {}
 
   async status(): Promise<VaultStatus & { credentialCount: number }> {
@@ -368,6 +376,73 @@ export class PureVault {
       // Locking must still succeed if the audit record cannot be written.
     }
     await this.sessionStorage.clear();
+  }
+
+  async rememberOnDevice(): Promise<void> {
+    const metadata = await this.store.readMetadata();
+    const session = await this.readActiveSession();
+    if (!metadata || !session) {
+      throw new PureExtensionError(
+        "VAULT_LOCKED",
+        "请先使用主密码解锁保险库"
+      );
+    }
+    const rawKey = new Uint8Array(decodeBase64Url(
+      session.vaultKey,
+      VAULT_KEY_BYTES,
+      VAULT_KEY_BYTES
+    ));
+    try {
+      try {
+        await rememberVaultKeyOnDevice(
+          this.deviceUnlockStorage,
+          metadata,
+          rawKey
+        );
+        await this.updateSettings({
+          rememberDevice: true,
+          rememberSession: true
+        });
+      } catch (error) {
+        await this.deviceUnlockStorage.clear().catch(() => undefined);
+        throw error;
+      }
+    } finally {
+      rawKey.fill(0);
+    }
+  }
+
+  async forgetRememberedDevice(): Promise<void> {
+    await this.deviceUnlockStorage.clear();
+    await this.updateSettings({ rememberDevice: false });
+  }
+
+  async restoreRememberedDevice(): Promise<boolean> {
+    const settings = await this.settingsStorage.read();
+    if (!settings.rememberDevice) {
+      return false;
+    }
+    const metadata = await this.store.readMetadata();
+    if (!metadata) {
+      await this.deviceUnlockStorage.clear();
+      await this.updateSettings({ rememberDevice: false });
+      return false;
+    }
+    const rawKey = await restoreVaultKeyFromDevice(
+      this.deviceUnlockStorage,
+      metadata
+    );
+    if (!rawKey) {
+      await this.deviceUnlockStorage.clear();
+      await this.updateSettings({ rememberDevice: false });
+      return false;
+    }
+    try {
+      await this.writeSession(rawKey);
+      return true;
+    } finally {
+      rawKey.fill(0);
+    }
   }
 
   async updateSettings(
@@ -1608,6 +1683,10 @@ function defaultSettingsStorage(): VaultSettingsStorage {
   return typeof chrome !== "undefined" && chrome.storage?.local
     ? new ChromeVaultSettingsStorage()
     : new MemoryVaultSettingsStorage();
+}
+
+function defaultDeviceUnlockStorage(): DeviceUnlockStorage {
+  return new ChromeDeviceUnlockStorage();
 }
 
 function isVaultSession(value: unknown): value is VaultSession {

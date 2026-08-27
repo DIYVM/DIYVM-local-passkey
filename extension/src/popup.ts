@@ -55,7 +55,12 @@ type PopupRequest =
   | {
       type: "initializeVault" | "unlockVault";
       masterPassword: string;
+      rememberDevice?: boolean;
       rememberSession?: boolean;
+    }
+  | {
+      type: "setRememberDevice";
+      enabled: boolean;
     }
   | {
       type: "changeMasterPassword";
@@ -148,6 +153,7 @@ const elements = {
   lockVault: requireButton("lock-vault"),
   vaultForm: requireForm("vault-form"),
   masterPassword: requireInput("master-password"),
+  rememberDeviceUnlock: requireInput("remember-device-unlock"),
   rememberSessionUnlock: requireInput("remember-session-unlock"),
   vaultAction: requireButton("vault-action"),
   vaultContent: requireElement("vault-content"),
@@ -186,6 +192,7 @@ const elements = {
   newMasterPassword: requireInput("new-master-password"),
   confirmMasterPassword: requireInput("confirm-master-password"),
   autoLockMinutes: requireSelect("auto-lock-minutes"),
+  rememberDeviceSetting: requireInput("remember-device-setting"),
   rememberSessionSetting: requireInput("remember-session-setting"),
   passkeyAllHttps: requireInput("passkey-all-https"),
   addAutoFillOriginForm: requireForm("add-autofill-origin-form"),
@@ -263,14 +270,34 @@ elements.vaultForm.addEventListener("submit", (event) => {
     );
     return;
   }
+  const rememberDevice = elements.rememberDeviceUnlock.checked;
+  if (
+    rememberDevice &&
+    currentStatus?.settings.rememberDevice !== true &&
+    !window.confirm(
+      "信任此设备会让任何能进入当前 Chrome 用户配置的人无需主密码访问保险库。是否继续？"
+    )
+  ) {
+    return;
+  }
   void sendPopupRequest(
     {
       type,
       masterPassword,
-      rememberSession: elements.rememberSessionUnlock.checked
+      rememberDevice,
+      rememberSession:
+        rememberDevice || elements.rememberSessionUnlock.checked
     },
     type === "initializeVault" ? "正在创建加密 Vault" : "正在解锁 Vault"
   );
+});
+
+elements.rememberDeviceUnlock.addEventListener("change", () => {
+  if (elements.rememberDeviceUnlock.checked) {
+    elements.rememberSessionUnlock.checked = true;
+  }
+  elements.rememberSessionUnlock.disabled =
+    elements.rememberDeviceUnlock.checked;
 });
 
 elements.passwordSearch.addEventListener("input", renderPasswords);
@@ -331,9 +358,15 @@ elements.changePasswordForm.addEventListener("submit", (event) => {
 });
 elements.autoLockMinutes.addEventListener("change", () => {
   const value = Number(elements.autoLockMinutes.value);
-  if (value === 5 || value === 15 || value === 30 || value === 60) {
+  if (
+    value === 5 || value === 15 || value === 30 || value === 60 ||
+    value === 120 || value === 480 || value === 1440
+  ) {
     void updateSettings({ autoLockMinutes: value });
   }
+});
+elements.rememberDeviceSetting.addEventListener("change", () => {
+  void toggleRememberDevice(elements.rememberDeviceSetting.checked);
 });
 elements.rememberSessionSetting.addEventListener("change", () => {
   void updateSettings({
@@ -450,9 +483,11 @@ function renderAll(): void {
     currentStatus.passwordAudit.weak + currentStatus.passwordAudit.reused
   );
   elements.autoLockLabel.textContent =
-    currentStatus.settings.rememberSession
-      ? "SESSION"
-      : formatAutoLock(currentStatus.settings.autoLockMinutes);
+    currentStatus.settings.rememberDevice
+      ? "DEVICE"
+      : currentStatus.settings.rememberSession
+        ? "SESSION"
+        : formatAutoLock(currentStatus.settings.autoLockMinutes);
   elements.extensionVersion.textContent = currentStatus.extensionVersion;
   elements.currentOrigin.textContent = currentStatus.currentOrigin
     ? `${currentStatus.currentOrigin}${
@@ -468,8 +503,17 @@ function renderAll(): void {
     currentStatus.settings.rememberSession;
   elements.rememberSessionSetting.checked =
     currentStatus.settings.rememberSession;
+  elements.rememberDeviceUnlock.checked =
+    currentStatus.settings.rememberDevice;
+  elements.rememberDeviceSetting.checked =
+    currentStatus.settings.rememberDevice;
+  elements.rememberSessionUnlock.disabled =
+    currentStatus.settings.rememberDevice;
+  elements.rememberSessionSetting.disabled =
+    currentStatus.settings.rememberDevice;
   elements.autoLockMinutes.disabled =
-    currentStatus.settings.rememberSession;
+    currentStatus.settings.rememberSession ||
+    currentStatus.settings.rememberDevice;
   elements.passkeyAllHttps.checked = currentStatus.settings.passkeyAllHttps;
   elements.auditWeak.textContent = String(currentStatus.passwordAudit.weak);
   elements.auditReused.textContent = String(currentStatus.passwordAudit.reused);
@@ -966,6 +1010,36 @@ async function togglePasskeyAllHttps(enabled: boolean): Promise<void> {
   }
 }
 
+async function toggleRememberDevice(enabled: boolean): Promise<void> {
+  try {
+    if (
+      enabled &&
+      !window.confirm(
+        "信任此设备会让任何能进入当前 Chrome 用户配置的人无需主密码访问保险库。是否继续？"
+      )
+    ) {
+      elements.rememberDeviceSetting.checked = false;
+      return;
+    }
+    const response = await sendPopupRequest(
+      { type: "setRememberDevice", enabled },
+      enabled ? "正在信任此设备" : "正在撤销设备信任"
+    );
+    if (response?.ok) {
+      setOperationStatus(
+        enabled
+          ? "已信任此设备；重新打开 Chrome 后将自动解锁。"
+          : "已撤销设备信任；下次重新打开 Chrome 后需要主密码。",
+        "success"
+      );
+    }
+  } catch (error) {
+    elements.rememberDeviceSetting.checked =
+      currentStatus?.settings.rememberDevice ?? false;
+    setOperationStatus(errorMessage(error), "error");
+  }
+}
+
 function retainedHttpsPermissions(): string[] {
   const origins = [
     ...(currentStatus?.settings.autoFillOrigins ?? []).map(
@@ -1321,6 +1395,15 @@ async function importBackupFile(file: File): Promise<void> {
   setBackupStatus("正在校验并恢复加密备份…");
   let store: IndexedDbVaultStore | undefined;
   try {
+    const contents = await file.text();
+    await verifyVaultBackup(contents);
+    const forgetResponse = await chrome.runtime.sendMessage({
+      type: "setRememberDevice",
+      enabled: false
+    }) as PopupResponse;
+    if (!forgetResponse.ok) {
+      throw new Error(forgetResponse.error);
+    }
     const lockResponse = await chrome.runtime.sendMessage({
       type: "lockVault"
     }) as PopupResponse;
@@ -1328,7 +1411,7 @@ async function importBackupFile(file: File): Promise<void> {
       throw new Error(lockResponse.error);
     }
     store = await IndexedDbVaultStore.open();
-    const result = await importVaultBackup(store, await file.text());
+    const result = await importVaultBackup(store, contents);
     setBackupStatus(
       `已恢复 ${result.itemCount} 个凭据，请使用备份对应的主密码解锁。`,
       "success"

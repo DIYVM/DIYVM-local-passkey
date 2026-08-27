@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.4 — 2026-08-18
+
+### Added
+
+- Added an explicit “trust this device” option that can restore the unlocked
+  Vault Key after Chrome is fully restarted without storing the master password.
+- The Vault Key is wrapped by a non-extractable AES-GCM device key stored in the
+  extension's IndexedDB. The feature is disabled by default and displays a
+  warning that anyone who can use the same Chrome profile can access the vault.
+
+### Security
+
+- Manual locking blocks trusted-device restoration for the rest of the current
+  browser session; a full Chrome restart is required before automatic unlock.
+- Revoking device trust deletes the persistent unlock record. Vault restore
+  invalidates it, and changing the master password refreshes it.
+
 ## 1.2.3 — 2026-08-07
 
 ### Added

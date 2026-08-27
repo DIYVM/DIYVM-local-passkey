@@ -68,6 +68,7 @@ import {
 const extensionVersion = chrome.runtime.getManifest().version;
 const CONFIRMATION_TIMEOUT_MS = 120_000;
 const AUTO_LOCK_ALARM = "diyvm-local-vault-auto-lock";
+const DEVICE_UNLOCK_BLOCK_KEY = "diyvmDeviceUnlockBlockedForSession";
 
 interface ExtensionStatus extends VaultStatus {
   extensionVersion: string;
@@ -84,7 +85,12 @@ type PopupRequest =
   | {
       type: "initializeVault" | "unlockVault";
       masterPassword: string;
+      rememberDevice?: boolean;
       rememberSession?: boolean;
+    }
+  | {
+      type: "setRememberDevice";
+      enabled: boolean;
     }
   | {
       type: "deleteCredential";
@@ -180,6 +186,7 @@ const activeCeremonies = new Set<string>();
 const canceledCeremonies = new Set<string>();
 const pendingConfirmations = new Map<string, PendingConfirmation>();
 const confirmationWindows = new Map<number, string>();
+let deviceUnlockReady = restoreRememberedDeviceIfAllowed();
 
 chrome.windows.onRemoved.addListener((windowId) => {
   const confirmationId = confirmationWindows.get(windowId);
@@ -202,6 +209,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.runtime.onStartup.addListener(() => {
   void syncSiteAccessFromSettings();
+  deviceUnlockReady = restoreRememberedDeviceIfAllowed();
 });
 
 chrome.permissions.onAdded.addListener(() => {
@@ -267,6 +275,7 @@ chrome.runtime.onMessage.addListener(
 );
 
 async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse> {
+  await deviceUnlockReady;
   const opened = await openPureVault();
   try {
     let passwordDetails: PasswordDetails | undefined;
@@ -276,19 +285,40 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
 
     if (message.type === "initializeVault") {
       await opened.vault.updateSettings({
-        rememberSession: message.rememberSession === true
+        rememberSession:
+          message.rememberDevice === true || message.rememberSession === true
       });
       await opened.vault.initialize(message.masterPassword);
+      await setDeviceUnlockBlocked(false);
+      if (message.rememberDevice === true) {
+        await opened.vault.rememberOnDevice();
+      }
       await scheduleAutoLock();
     } else if (message.type === "unlockVault") {
       await opened.vault.updateSettings({
-        rememberSession: message.rememberSession === true
+        rememberSession:
+          message.rememberDevice === true || message.rememberSession === true
       });
       await opened.vault.unlock(message.masterPassword);
+      await setDeviceUnlockBlocked(false);
+      if (message.rememberDevice === true) {
+        await opened.vault.rememberOnDevice();
+      } else if ((await opened.vault.status()).settings.rememberDevice) {
+        await opened.vault.forgetRememberedDevice();
+      }
       await scheduleAutoLock();
     } else if (message.type === "lockVault") {
       await opened.vault.lock();
+      await setDeviceUnlockBlocked(true);
       await chrome.alarms.clear(AUTO_LOCK_ALARM);
+    } else if (message.type === "setRememberDevice") {
+      if (message.enabled) {
+        await opened.vault.rememberOnDevice();
+        await setDeviceUnlockBlocked(false);
+      } else {
+        await opened.vault.forgetRememberedDevice();
+      }
+      await scheduleAutoLock();
     } else if (message.type === "deleteCredential") {
       await opened.vault.deleteCredential(message.credentialId);
     } else if (message.type === "changeMasterPassword") {
@@ -296,6 +326,9 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
         message.currentPassword,
         message.newPassword
       );
+      if ((await opened.vault.status()).settings.rememberDevice) {
+        await opened.vault.rememberOnDevice();
+      }
       await scheduleAutoLock();
     } else if (message.type === "savePassword") {
       requireInsecureHttpConfirmation(
@@ -399,8 +432,10 @@ async function handlePopupRequest(message: PopupRequest): Promise<PopupResponse>
       await requireOssPermission(configuration);
       const remote = await downloadAndVerifyOssBackup(configuration);
       ossRemoteBackupInfo = remote.info;
+      await opened.vault.forgetRememberedDevice();
       await importVaultBackup(opened.store, remote.contents);
       await opened.vault.lock();
+      await setDeviceUnlockBlocked(true);
       await chrome.alarms.clear(AUTO_LOCK_ALARM);
     } else if (message.type === "disconnectOss") {
       const configuration = await opened.vault.readOssConfiguration();
@@ -741,6 +776,7 @@ async function handleAutoFillRequest(
   | { ok: true; credential?: PasswordDetails }
   | { ok: false; error: string }
 > {
+  await deviceUnlockReady;
   const origin = sender.url ? new URL(sender.url).origin : undefined;
   if (!origin) {
     return { ok: false, error: "无法验证自动填充来源" };
@@ -781,6 +817,31 @@ async function scheduleAutoLock(): Promise<void> {
   await chrome.alarms.create(AUTO_LOCK_ALARM, {
     when: Date.now() + settings.autoLockMinutes * 60 * 1_000
   });
+}
+
+async function restoreRememberedDeviceIfAllowed(): Promise<boolean> {
+  try {
+    const blocked = await chrome.storage.session.get(DEVICE_UNLOCK_BLOCK_KEY);
+    if (blocked[DEVICE_UNLOCK_BLOCK_KEY] === true) {
+      return false;
+    }
+    const opened = await openPureVault();
+    try {
+      return await opened.vault.restoreRememberedDevice();
+    } finally {
+      opened.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
+async function setDeviceUnlockBlocked(blocked: boolean): Promise<void> {
+  if (blocked) {
+    await chrome.storage.session.set({ [DEVICE_UNLOCK_BLOCK_KEY]: true });
+  } else {
+    await chrome.storage.session.remove(DEVICE_UNLOCK_BLOCK_KEY);
+  }
 }
 
 async function lockVaultFromAlarm(): Promise<void> {
@@ -839,6 +900,7 @@ async function handleWebAuthnRequest(
   message: BackgroundWebAuthnRequest,
   sender: chrome.runtime.MessageSender
 ): Promise<ExtensionBridgeResponse> {
+  await deviceUnlockReady;
   const origin = await allowedSenderOrigin(sender);
   const ceremonyKey = requestKey(sender, message.requestId);
   if (!origin || !ceremonyKey || activeCeremonies.has(ceremonyKey)) {
@@ -1164,15 +1226,20 @@ function isPopupRequest(value: unknown): value is PopupRequest {
   if (message.type === "configureOss") {
     return isOssConfigurationInput(message.configuration);
   }
+  if (message.type === "setRememberDevice") {
+    return typeof message.enabled === "boolean";
+  }
   if (message.type === "initializeVault") {
     return (
       isNewMasterPassword(message.masterPassword) &&
+      optionalBoolean(message.rememberDevice) &&
       optionalBoolean(message.rememberSession)
     );
   }
   if (message.type === "unlockVault") {
     return (
       isExistingMasterPassword(message.masterPassword) &&
+      optionalBoolean(message.rememberDevice) &&
       optionalBoolean(message.rememberSession)
     );
   }

@@ -13,6 +13,12 @@ import {
   PureExtensionError,
   PureVault
 } from "../src/pure-vault";
+import {
+  ChromeDeviceUnlockStorage,
+  MemoryDeviceUnlockStorage,
+  rememberVaultKeyOnDevice,
+  restoreVaultKeyFromDevice
+} from "../src/device-unlock";
 import { MemoryVaultSettingsStorage } from "../src/vault-settings";
 import {
   exportVaultBackup,
@@ -24,6 +30,7 @@ describe("unified password and passkey vault", () => {
   let store: IndexedDbVaultStore;
   let session: MemoryVaultSessionStorage;
   let settings: MemoryVaultSettingsStorage;
+  let deviceUnlock: MemoryDeviceUnlockStorage;
   let vault: PureVault;
   let now: number;
 
@@ -32,8 +39,9 @@ describe("unified password and passkey vault", () => {
     store = await IndexedDbVaultStore.open({ databaseName });
     session = new MemoryVaultSessionStorage();
     settings = new MemoryVaultSettingsStorage();
+    deviceUnlock = new MemoryDeviceUnlockStorage();
     now = 1_800_000_000_000;
-    vault = new PureVault(store, session, () => now, settings);
+    vault = new PureVault(store, session, () => now, settings, deviceUnlock);
     await vault.initialize("correct horse battery staple");
   });
 
@@ -65,6 +73,53 @@ describe("unified password and passkey vault", () => {
     } finally {
       shortStore.close();
       await deleteIndexedDbVault(shortDatabaseName);
+    }
+  });
+
+  it("restores an explicitly trusted device without storing the master password", async () => {
+    await vault.rememberOnDevice();
+    const record = await deviceUnlock.read();
+    assert(record);
+    assert.equal(record.wrappingKey.extractable, false);
+    assert.deepEqual(record.wrappingKey.usages.sort(), ["decrypt", "encrypt"]);
+    assert.doesNotMatch(JSON.stringify(record), /correct horse battery staple/u);
+
+    await vault.lock();
+    const reopened = new PureVault(
+      store,
+      new MemoryVaultSessionStorage(),
+      () => now,
+      settings,
+      deviceUnlock
+    );
+    assert.equal((await reopened.status()).vaultState, "locked");
+    assert.equal(await reopened.restoreRememberedDevice(), true);
+    assert.equal((await reopened.status()).vaultState, "unlocked");
+
+    await reopened.forgetRememberedDevice();
+    await reopened.lock();
+    assert.equal(await reopened.restoreRememberedDevice(), false);
+    assert.equal((await reopened.status()).settings.rememberDevice, false);
+  });
+
+  it("round-trips a non-extractable device key through IndexedDB", async () => {
+    const metadata = await store.readMetadata();
+    assert(metadata);
+    const rawKey = crypto.getRandomValues(new Uint8Array(32));
+    const deviceStorage = new ChromeDeviceUnlockStorage();
+    await deviceStorage.clear();
+    try {
+      await rememberVaultKeyOnDevice(deviceStorage, metadata, rawKey);
+      const record = await deviceStorage.read();
+      assert(record);
+      assert.equal(record.wrappingKey.extractable, false);
+      assert.deepEqual(
+        await restoreVaultKeyFromDevice(deviceStorage, metadata),
+        rawKey
+      );
+    } finally {
+      rawKey.fill(0);
+      await deviceStorage.clear();
     }
   });
 
