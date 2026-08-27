@@ -61,6 +61,11 @@ describe("optional all-HTTPS passkey mode", () => {
     assert.match(contentScript, /candidate\.maskedUserName/u);
     assert.match(contentScript, /formatConditionalLastUsed/u);
     assert.match(contentScript, /selectedCredentialId/u);
+    assert.match(contentScript, /@media \(prefers-color-scheme: dark\)/u);
+    assert.match(contentScript, /--lp-text: #111827/u);
+    assert.match(contentScript, /--lp-text: #ffffff/u);
+    assert.match(contentScript, /color: var\(--lp-text\)/u);
+    assert.doesNotMatch(contentScript, /color: CanvasText/u);
     assert.match(contentScript, /let top = rect\.bottom \+ 6/u);
     assert.match(contentScript, /Math\.max\(8, rect\.left\)/u);
     assert.doesNotMatch(contentScript, /rect\.right \+ 8/u);

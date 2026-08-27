@@ -3,7 +3,7 @@
   <h1>DIYVM Local Passkey</h1>
   <p>A local-first password and passkey manager with optional backup to user-owned OSS.</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.2.6-2458d3?style=flat-square" alt="Version 1.2.6">
+    <img src="https://img.shields.io/badge/version-1.2.7-2458d3?style=flat-square" alt="Version 1.2.7">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
@@ -17,7 +17,7 @@
 
 ## Overview
 
-DIYVM Local Passkey `1.2.6` is a local password and passkey vault for general websites.
+DIYVM Local Passkey `1.2.7` is a local password and passkey vault for general websites.
 It requires no DIYVM account or developer-operated
 server. Passwords, passkey private keys, and audit events are encrypted before local
 storage. Users may also manually upload the complete encrypted backup to their own
@@ -96,7 +96,7 @@ without source maps is generated with:
 npm run build:store
 ```
 
-## Version 1.2.6 limitations
+## Version 1.2.7 limitations
 
 - No multi-device bidirectional sync, shared vaults, payment cards, or identity-profile autofill.
 - A software passkey is not isolated as strongly as a TPM, Secure Enclave, or hardware key.
@@ -106,7 +106,7 @@ npm run build:store
   Fill credentials only on trusted sites whose domain is correct.
 - The project has automated tests and a code-level security review, but it does not claim
   an independent third-party security audit.
-- A previously approved Chrome Web Store version and the `1.2.6` update are separate review
+- A previously approved Chrome Web Store version and the `1.2.7` update are separate review
   submissions. Google must review the update after it is uploaded.
 
 ## Privacy

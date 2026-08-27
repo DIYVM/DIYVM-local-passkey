@@ -236,15 +236,35 @@ function showConditionalPasskeyPrompt(
   const shadow = host.attachShadow({ mode: "closed" });
   const style = document.createElement("style");
   style.textContent = `
-    :host { all: initial; color-scheme: light dark; }
+    :host {
+      all: initial;
+      color-scheme: light;
+      --lp-surface: #ffffff;
+      --lp-text: #111827;
+      --lp-muted: #5f6f84;
+      --lp-line: #d3dfed;
+      --lp-hover: #edf5ff;
+      --lp-accent: #1d5fc4;
+    }
+    @media (prefers-color-scheme: dark) {
+      :host {
+        color-scheme: dark;
+        --lp-surface: #07142a;
+        --lp-text: #ffffff;
+        --lp-muted: #b8c8dc;
+        --lp-line: #284a75;
+        --lp-hover: #123867;
+        --lp-accent: #5fc9ff;
+      }
+    }
     .panel {
       box-sizing: border-box;
       overflow: hidden;
       width: 100%;
-      border: 1px solid rgba(72, 126, 218, .58);
+      border: 1px solid var(--lp-line);
       border-radius: 10px;
-      background: color-mix(in srgb, Canvas 96%, #1d5fc4 4%);
-      color: CanvasText;
+      background: var(--lp-surface);
+      color: var(--lp-text);
       box-shadow: 0 12px 30px rgba(8, 32, 74, .20), 0 3px 8px rgba(8, 32, 74, .12);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
     }
@@ -254,13 +274,13 @@ function showConditionalPasskeyPrompt(
       justify-content: space-between;
       gap: 10px;
       padding: 8px 10px;
-      border-bottom: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
-      color: color-mix(in srgb, CanvasText 72%, transparent);
+      border-bottom: 1px solid var(--lp-line);
+      color: var(--lp-muted);
       font: 700 10px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
       letter-spacing: .06em;
       text-transform: uppercase;
     }
-    .heading strong { color: #2873db; font: inherit; }
+    .heading strong { color: var(--lp-accent); font: inherit; }
     .accounts { overflow-y: auto; max-height: 236px; }
     button {
       all: initial;
@@ -273,15 +293,15 @@ function showConditionalPasskeyPrompt(
       min-height: 54px;
       padding: 8px 10px;
       border: 0;
-      border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+      border-bottom: 1px solid var(--lp-line);
       background: transparent;
-      color: CanvasText;
+      color: var(--lp-text);
       font: 600 12px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
       cursor: pointer;
       user-select: none;
     }
     button:last-child { border-bottom: 0; }
-    button:hover { background: color-mix(in srgb, Canvas 88%, #2873db 12%); }
+    button:hover { background: var(--lp-hover); }
     button:focus-visible { position: relative; outline: 3px solid rgba(45, 126, 235, .34); outline-offset: -3px; }
     .mark {
       flex: 0 0 auto;
@@ -295,9 +315,9 @@ function showConditionalPasskeyPrompt(
       font: 800 15px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     .copy { display: grid; min-width: 0; gap: 3px; text-align: left; }
-    .account-name { overflow: hidden; font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
-    .account-meta { overflow: hidden; color: color-mix(in srgb, CanvasText 62%, transparent); font-size: 10px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
-    .more { min-height: 38px; justify-content: center; color: #2873db; font-size: 11px; }
+    .account-name { overflow: hidden; color: var(--lp-text); font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+    .account-meta { overflow: hidden; color: var(--lp-muted); font-size: 10px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+    .more { min-height: 38px; justify-content: center; color: var(--lp-accent); font-size: 11px; }
   `;
   const panel = document.createElement("section");
   panel.className = "panel";

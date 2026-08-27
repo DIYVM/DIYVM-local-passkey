@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.7 — 2026-08-27
+
+### Fixed
+
+- Replaced system `CanvasText`/`Canvas` colors in the page account list with explicit theme
+  tokens so account names remain readable on websites whose page theme differs from the user's
+  operating-system theme.
+- Light mode now uses a white surface with dark text; dark mode uses a dark-blue surface with
+  white text. Secondary account details use separate high-contrast colors in both modes.
+
+### Security
+
+- The change affects only local presentation and adds no permissions, data access, remote code,
+  or network transmission.
+
 ## 1.2.6 — 2026-08-27
 
 ### Added
