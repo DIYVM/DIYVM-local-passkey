@@ -225,7 +225,9 @@ function showConditionalPasskeyPrompt(onActivate: () => void): () => void {
       box-sizing: border-box;
       display: inline-flex;
       align-items: center;
+      justify-content: flex-start;
       gap: 8px;
+      width: 100%;
       min-height: 36px;
       padding: 6px 11px 6px 7px;
       border: 1px solid rgba(72, 126, 218, .58);
@@ -326,6 +328,7 @@ function showConditionalPasskeyPrompt(onActivate: () => void): () => void {
         ? focusedInput
         : findBestLoginInput();
     if (!input) {
+      host.style.setProperty("width", "190px", "important");
       host.style.setProperty("right", "18px", "important");
       host.style.setProperty("bottom", "18px", "important");
       host.style.removeProperty("left");
@@ -334,18 +337,20 @@ function showConditionalPasskeyPrompt(onActivate: () => void): () => void {
     }
 
     const rect = input.getBoundingClientRect();
-    const promptWidth = 178;
+    const promptWidth = Math.min(
+      Math.max(rect.width, 178),
+      Math.max(178, window.innerWidth - 16)
+    );
     const promptHeight = 38;
-    let left = rect.right + 8;
-    let top = rect.top + Math.max(0, (rect.height - promptHeight) / 2);
-    if (left + promptWidth > window.innerWidth - 8) {
-      left = Math.max(8, rect.right - promptWidth);
-      top = Math.min(
-        window.innerHeight - promptHeight - 8,
-        rect.bottom + 6
-      );
+    const left = Math.min(
+      window.innerWidth - promptWidth - 8,
+      Math.max(8, rect.left)
+    );
+    let top = rect.bottom + 6;
+    if (top + promptHeight > window.innerHeight - 8) {
+      top = Math.max(8, rect.top - promptHeight - 6);
     }
-    top = Math.min(window.innerHeight - promptHeight - 8, Math.max(8, top));
+    host.style.setProperty("width", `${Math.round(promptWidth)}px`, "important");
     host.style.setProperty("left", `${Math.round(left)}px`, "important");
     host.style.setProperty("top", `${Math.round(top)}px`, "important");
     host.style.removeProperty("right");

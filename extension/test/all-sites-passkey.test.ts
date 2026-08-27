@@ -57,6 +57,9 @@ describe("optional all-HTTPS passkey mode", () => {
     assert.match(contentScript, /showConditionalPasskeyPrompt/u);
     assert.match(contentScript, /attachShadow\(\{ mode: "closed" \}\)/u);
     assert.match(contentScript, /使用 DIYVM Passkey/u);
+    assert.match(contentScript, /let top = rect\.bottom \+ 6/u);
+    assert.match(contentScript, /Math\.max\(8, rect\.left\)/u);
+    assert.doesNotMatch(contentScript, /rect\.right \+ 8/u);
     assert.match(background, /authenticator\.assertionDetails/u);
     assert.match(background, /details\.credentials\.length > 0/u);
     assert.match(pageBridge, /request\.fallback\(\)/u);
