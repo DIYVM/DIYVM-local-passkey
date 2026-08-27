@@ -3,7 +3,7 @@
   <h1>DIYVM Local Passkey</h1>
   <p>A local-first password and passkey manager with optional backup to user-owned OSS.</p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.2.4-2458d3?style=flat-square" alt="Version 1.2.4">
+    <img src="https://img.shields.io/badge/version-1.2.5-2458d3?style=flat-square" alt="Version 1.2.5">
     <img src="https://img.shields.io/badge/Manifest-V3-34a853?style=flat-square" alt="Manifest V3">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f59e0b?style=flat-square" alt="Apache-2.0">
   </p>
@@ -17,7 +17,7 @@
 
 ## Overview
 
-DIYVM Local Passkey `1.2.4` is a local password and passkey vault for general websites.
+DIYVM Local Passkey `1.2.5` is a local password and passkey vault for general websites.
 It requires no DIYVM account or developer-operated
 server. Passwords, passkey private keys, and audit events are encrypted before local
 storage. Users may also manually upload the complete encrypted backup to their own
@@ -29,8 +29,9 @@ unlock. Existing passkeys do not need to be recreated.
 ## Features
 
 - One encrypted vault for passwords and ES256 passkeys.
-- User-enabled passkey creation and sign-in for ordinary WebAuthn on all HTTPS sites,
-  with no website access granted at installation.
+- User-enabled WebAuthn passkey creation and sign-in on all HTTPS sites. When a sign-in page
+  starts Conditional UI and a matching local credential exists, a DIYVM Passkey candidate is
+  shown next to the login field. No website access is granted at installation.
 - User-initiated password capture, matching, and filling on HTTP/HTTPS pages, without form submission.
 - Prioritizes the active login dialog and supports same-origin iframes, open Shadow DOM, and multi-step sign-in.
 - Optional persistent autofill that the user grants one HTTPS origin at a time.
@@ -94,7 +95,7 @@ without source maps is generated with:
 npm run build:store
 ```
 
-## Version 1.2.4 limitations
+## Version 1.2.5 limitations
 
 - No multi-device bidirectional sync, shared vaults, payment cards, or identity-profile autofill.
 - A software passkey is not isolated as strongly as a TPM, Secure Enclave, or hardware key.
@@ -104,7 +105,7 @@ npm run build:store
   Fill credentials only on trusted sites whose domain is correct.
 - The project has automated tests and a code-level security review, but it does not claim
   an independent third-party security audit.
-- A previously approved Chrome Web Store version and the `1.2.4` update are separate review
+- A previously approved Chrome Web Store version and the `1.2.5` update are separate review
   submissions. Google must review the update after it is uploaded.
 
 ## Privacy

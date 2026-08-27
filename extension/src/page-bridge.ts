@@ -17,15 +17,30 @@ import {
 const MAX_CEREMONY_MS = 120_000;
 const MIN_CEREMONY_MS = 15_000;
 
-type PendingRequest = {
+type PendingRequestBase = {
   operation: "create" | "get";
   resolve: (credential: Credential | null) => void;
   reject: (error: unknown) => void;
-  fallback: () => Promise<Credential | null>;
-  timeout: ReturnType<typeof setTimeout>;
   signal?: AbortSignal;
   abortHandler?: () => void;
 };
+
+type StandardPendingRequest = PendingRequestBase & {
+  mode: "standard";
+  fallback: () => Promise<Credential | null>;
+  timeout: ReturnType<typeof setTimeout>;
+};
+
+type ConditionalPendingRequest = PendingRequestBase & {
+  mode: "conditional";
+  operation: "get";
+  nativeController: AbortController;
+  nativeError?: unknown;
+  nativeFailed: boolean;
+  localFinished: boolean;
+};
+
+type PendingRequest = StandardPendingRequest | ConditionalPendingRequest;
 
 const pending = new Map<string, PendingRequest>();
 const credentials = navigator.credentials;
@@ -75,7 +90,7 @@ function interceptCreate(
 function interceptGet(
   options?: CredentialRequestOptions
 ): Promise<Credential | null> {
-  if (!options?.publicKey || options.mediation === "conditional") {
+  if (!options?.publicKey) {
     return originalGet(options);
   }
 
@@ -84,6 +99,10 @@ function interceptGet(
     serialized = serializeRequestOptions(options.publicKey);
   } catch {
     return originalGet(options);
+  }
+
+  if (options.mediation === "conditional") {
+    return dispatchConditionalRequest(options, serialized);
   }
 
   return dispatchRequest(
@@ -141,6 +160,7 @@ function dispatchRequest(
     }, timeoutMs);
 
     const request: PendingRequest = {
+      mode: "standard",
       operation,
       resolve,
       reject,
@@ -166,26 +186,139 @@ function dispatchRequest(
 
     pending.set(requestId, request);
 
-    const message: PageBridgeRequest =
-      operation === "create"
-        ? {
-            channel: BRIDGE_CHANNEL,
-            source: "page",
-            kind: "request",
-            requestId,
-            operation,
-            publicKey: publicKey as SerializedCreationOptions
-          }
-        : {
-            channel: BRIDGE_CHANNEL,
-            source: "page",
-            kind: "request",
-            requestId,
-            operation,
-            publicKey: publicKey as SerializedRequestOptions
-          };
-    window.postMessage(message, location.origin);
+    postRequest(requestId, operation, publicKey);
   });
+}
+
+function dispatchConditionalRequest(
+  options: CredentialRequestOptions,
+  publicKey: SerializedRequestOptions
+): Promise<Credential | null> {
+  if (options.signal?.aborted) {
+    return Promise.reject(
+      new DOMException("The request was aborted", "AbortError")
+    );
+  }
+
+  const requestId = crypto.randomUUID().replaceAll("-", "");
+  const nativeController = new AbortController();
+
+  return new Promise((resolve, reject) => {
+    const request: ConditionalPendingRequest = {
+      mode: "conditional",
+      operation: "get",
+      resolve,
+      reject,
+      nativeController,
+      nativeFailed: false,
+      localFinished: false,
+      ...(options.signal ? { signal: options.signal } : {})
+    };
+
+    if (options.signal) {
+      request.abortHandler = () => {
+        if (pending.get(requestId) !== request) {
+          return;
+        }
+        cleanupPending(requestId, request);
+        nativeController.abort();
+        postCancel(requestId);
+        reject(new DOMException("The request was aborted", "AbortError"));
+      };
+      options.signal.addEventListener("abort", request.abortHandler, {
+        once: true
+      });
+    }
+
+    pending.set(requestId, request);
+    startNativeConditionalRequest(requestId, request, options);
+    postRequest(requestId, "get", publicKey, "conditional");
+  });
+}
+
+function startNativeConditionalRequest(
+  requestId: string,
+  request: ConditionalPendingRequest,
+  options: CredentialRequestOptions
+): void {
+  let nativeRequest: Promise<Credential | null>;
+  try {
+    nativeRequest = originalGet({
+      ...options,
+      signal: request.nativeController.signal
+    });
+  } catch (error) {
+    handleNativeConditionalFailure(requestId, request, error);
+    return;
+  }
+
+  void nativeRequest.then(
+    (credential) => {
+      if (pending.get(requestId) !== request) {
+        return;
+      }
+      cleanupPending(requestId, request);
+      postCancel(requestId);
+      request.resolve(credential);
+    },
+    (error: unknown) => {
+      handleNativeConditionalFailure(requestId, request, error);
+    }
+  );
+}
+
+function handleNativeConditionalFailure(
+  requestId: string,
+  request: ConditionalPendingRequest,
+  error: unknown
+): void {
+  if (pending.get(requestId) !== request) {
+    return;
+  }
+  request.nativeFailed = true;
+  request.nativeError = error;
+  if (request.localFinished) {
+    cleanupPending(requestId, request);
+    request.reject(error);
+  }
+}
+
+function postRequest(
+  requestId: string,
+  operation: "create" | "get",
+  publicKey: SerializedCreationOptions | SerializedRequestOptions,
+  mediation?: "conditional"
+): void {
+  const message: PageBridgeRequest =
+    operation === "create"
+      ? {
+          channel: BRIDGE_CHANNEL,
+          source: "page",
+          kind: "request",
+          requestId,
+          operation,
+          publicKey: publicKey as SerializedCreationOptions
+        }
+      : {
+          channel: BRIDGE_CHANNEL,
+          source: "page",
+          kind: "request",
+          requestId,
+          operation,
+          publicKey: publicKey as SerializedRequestOptions,
+          ...(mediation ? { mediation } : {})
+        };
+  window.postMessage(message, location.origin);
+}
+
+function postCancel(requestId: string): void {
+  const cancel: PageBridgeCancel = {
+    channel: BRIDGE_CHANNEL,
+    source: "page",
+    kind: "cancel",
+    requestId
+  };
+  window.postMessage(cancel, location.origin);
 }
 
 function handleExtensionMessage(event: MessageEvent<unknown>): void {
@@ -201,6 +334,11 @@ function handleExtensionMessage(event: MessageEvent<unknown>): void {
   if (!request) {
     return;
   }
+  if (request.mode === "conditional") {
+    handleConditionalExtensionResponse(event.data, request);
+    return;
+  }
+
   cleanupPending(event.data.requestId, request);
 
   if (!event.data.ok) {
@@ -226,9 +364,45 @@ function handleExtensionMessage(event: MessageEvent<unknown>): void {
   }
 }
 
+function handleConditionalExtensionResponse(
+  response: ExtensionBridgeResponse,
+  request: ConditionalPendingRequest
+): void {
+  if (!response.ok) {
+    if (response.error.code === "ABORTED") {
+      cleanupPending(response.requestId, request);
+      request.nativeController.abort();
+      request.reject(toDomException(response.error.code, response.error.message));
+      return;
+    }
+    request.localFinished = true;
+    if (request.nativeFailed) {
+      cleanupPending(response.requestId, request);
+      request.reject(request.nativeError);
+    }
+    return;
+  }
+
+  try {
+    if (response.operation !== "get") {
+      throw new DOMException("Mismatched WebAuthn response", "UnknownError");
+    }
+    const credential = restoreAssertionCredential(response.credential);
+    cleanupPending(response.requestId, request);
+    request.nativeController.abort();
+    request.resolve(credential);
+  } catch (error) {
+    cleanupPending(response.requestId, request);
+    request.nativeController.abort();
+    request.reject(error);
+  }
+}
+
 function cleanupPending(requestId: string, request: PendingRequest): void {
   pending.delete(requestId);
-  clearTimeout(request.timeout);
+  if (request.mode === "standard") {
+    clearTimeout(request.timeout);
+  }
   if (request.signal && request.abortHandler) {
     request.signal.removeEventListener("abort", request.abortHandler);
   }

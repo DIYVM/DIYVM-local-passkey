@@ -45,10 +45,20 @@ describe("optional all-HTTPS passkey mode", () => {
     assert.doesNotMatch(siteAccess, /amazon-sites/u);
   });
 
-  it("keeps conditional mediation native and falls back on unsupported requests", async () => {
+  it("keeps native conditional UI while offering matching local passkeys", async () => {
     const pageBridge = await source("page-bridge.ts");
+    const contentScript = await source("content-script.ts");
     const background = await source("background.ts");
     assert.match(pageBridge, /options\.mediation === "conditional"/u);
+    assert.match(pageBridge, /dispatchConditionalRequest\(options, serialized\)/u);
+    assert.match(pageBridge, /startNativeConditionalRequest/u);
+    assert.match(pageBridge, /nativeController\.abort\(\)/u);
+    assert.match(contentScript, /localPasskeyConditionalProbe/u);
+    assert.match(contentScript, /showConditionalPasskeyPrompt/u);
+    assert.match(contentScript, /attachShadow\(\{ mode: "closed" \}\)/u);
+    assert.match(contentScript, /使用 DIYVM Passkey/u);
+    assert.match(background, /authenticator\.assertionDetails/u);
+    assert.match(background, /details\.credentials\.length > 0/u);
     assert.match(pageBridge, /request\.fallback\(\)/u);
     assert.match(background, /error\.code === "NOT_SUPPORTED"/u);
     assert.match(background, /error\.code === "SECURITY_ERROR"/u);

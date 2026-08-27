@@ -198,15 +198,15 @@
               <h3>通用 Passkey</h3>
               <p>
                 安装时不访问任何网站。开启后会申请全部 HTTPS 网站的可选权限，
-                并在顶层页面的普通 WebAuthn 请求中显示 DIYVM 确认窗口。
+                并在顶层页面的 WebAuthn 请求中提供 DIYVM 本地 Passkey。
               </p>
               <label class="check oss-consent">
                 <input id="passkey-all-https" type="checkbox">
                 在所有 HTTPS 网站启用本地 Passkey
               </label>
               <small class="oss-warning">
-                选择“改用 Chrome / 系统”、本地 Vault 不可用或网站参数不受支持时，
-                会继续使用浏览器原生验证器。Conditional UI 与跨域 iframe 不接管。
+                登录页发起 Conditional UI 且本地存在匹配凭据时，会在登录框旁显示 DIYVM
+                Passkey 候选项；Chrome / 系统验证器始终保留。跨域 iframe 不接管。
               </small>
             </section>
 

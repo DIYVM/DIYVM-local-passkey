@@ -972,7 +972,7 @@ async function togglePasskeyAllHttps(enabled: boolean): Promise<void> {
     if (enabled) {
       if (
         !window.confirm(
-          "开启后，DIYVM Local Passkey 会在所有 HTTPS 网站的顶层页面处理普通 WebAuthn 请求。你仍可在每次确认时改用 Chrome / 系统验证器。是否继续申请全站权限？"
+          "开启后，DIYVM Local Passkey 会在所有 HTTPS 网站的顶层页面处理 WebAuthn 请求；登录页有匹配凭据时还会显示 DIYVM Passkey 候选项。Chrome / 系统验证器始终保留。是否继续申请全站权限？"
         )
       ) {
         elements.passkeyAllHttps.checked = false;

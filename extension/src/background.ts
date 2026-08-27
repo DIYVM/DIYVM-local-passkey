@@ -17,6 +17,8 @@ import type {
 import {
   BRIDGE_CHANNEL,
   type BackgroundCancelRequest,
+  type BackgroundConditionalProbeRequest,
+  type BackgroundConditionalProbeResponse,
   type BackgroundWebAuthnRequest,
   type ExtensionBridgeResponse
 } from "./bridge-messages";
@@ -256,6 +258,11 @@ chrome.runtime.onMessage.addListener(
       isTrustedAutoFillSender(sender)
     ) {
       void handleAutoFillRequest(sender).then(sendResponse);
+      return true;
+    }
+
+    if (isConditionalProbeRequest(message)) {
+      void handleConditionalProbeRequest(message, sender).then(sendResponse);
       return true;
     }
 
@@ -949,6 +956,35 @@ async function handleWebAuthnRequest(
   }
 }
 
+async function handleConditionalProbeRequest(
+  message: BackgroundConditionalProbeRequest,
+  sender: chrome.runtime.MessageSender
+): Promise<BackgroundConditionalProbeResponse> {
+  await deviceUnlockReady;
+  const origin = await allowedSenderOrigin(sender);
+  const probeKey = requestKey(sender, message.requestId);
+  if (!origin || !probeKey) {
+    return { ok: true, available: false };
+  }
+
+  const opened = await openPureVault();
+  try {
+    if ((await opened.vault.status()).vaultState !== "unlocked") {
+      return { ok: true, available: false };
+    }
+    const authenticator = new SoftwareAuthenticator(opened.vault);
+    const details = await authenticator.assertionDetails(
+      origin,
+      message.publicKey
+    );
+    return { ok: true, available: details.credentials.length > 0 };
+  } catch {
+    return { ok: true, available: false };
+  } finally {
+    opened.close();
+  }
+}
+
 async function performCeremony(
   bridgeRequestId: string,
   operation: "create" | "get",
@@ -1432,6 +1468,21 @@ function isWebAuthnRequest(
     message.kind === "localPasskeyWebAuthn" &&
     typeof message.requestId === "string" &&
     (message.operation === "create" || message.operation === "get") &&
+    typeof message.publicKey === "object" &&
+    message.publicKey !== null
+  );
+}
+
+function isConditionalProbeRequest(
+  value: unknown
+): value is BackgroundConditionalProbeRequest {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const message = value as Partial<BackgroundConditionalProbeRequest>;
+  return (
+    message.kind === "localPasskeyConditionalProbe" &&
+    typeof message.requestId === "string" &&
     typeof message.publicKey === "object" &&
     message.publicKey !== null
   );

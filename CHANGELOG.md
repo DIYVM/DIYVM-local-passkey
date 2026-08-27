@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.5 — 2026-08-27
+
+### Added
+
+- When a website starts a conditional WebAuthn sign-in and the unlocked vault contains a
+  matching RP ID, the login page now shows a DIYVM Passkey candidate next to the most likely
+  account field.
+- Selecting the candidate opens the existing explicit confirmation window before the local
+  passkey is used. Matching continues to follow WebAuthn RP ID rules instead of exact login URLs.
+
+### Security
+
+- Chrome/system Conditional UI starts in parallel and remains the default fallback. The first
+  successful authenticator wins, and cancellation is propagated to the other local flow.
+- The page candidate is isolated in a closed Shadow DOM. The availability probe returns only a
+  boolean and does not expose vault account names or credential metadata to page scripts.
+- The feature reuses the user-approved optional all-HTTPS Passkey permission and does not add
+  new permissions or password-autofill authorization.
+
 ## 1.2.4 — 2026-08-18
 
 ### Added

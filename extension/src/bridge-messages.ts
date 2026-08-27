@@ -26,6 +26,7 @@ export type PageBridgeRequest =
       requestId: string;
       operation: "get";
       publicKey: SerializedRequestOptions;
+      mediation?: "conditional";
     };
 
 export interface PageBridgeCancel {
@@ -74,6 +75,22 @@ export interface BackgroundWebAuthnRequest {
   operation: BridgeOperation;
   publicKey: SerializedCreationOptions | SerializedRequestOptions;
 }
+
+export interface BackgroundConditionalProbeRequest {
+  kind: "localPasskeyConditionalProbe";
+  requestId: string;
+  publicKey: SerializedRequestOptions;
+}
+
+export type BackgroundConditionalProbeResponse =
+  | {
+      ok: true;
+      available: boolean;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
 
 export interface BackgroundCancelRequest {
   kind: "localPasskeyCancel";

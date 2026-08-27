@@ -181,6 +181,39 @@ describe("pure extension WebAuthn", () => {
     assert.equal(summaries[0]?.signCount, 2);
   });
 
+  it("automatically offers a created passkey to matching RP login pages", async () => {
+    const created = await authenticator.makeCredential(
+      "https://www.amazon.com",
+      creationOptions()
+    );
+    const request: SerializedRequestOptions = {
+      challenge: encodeBase64Url(bytes(32, 91)),
+      rpId: "amazon.com",
+      userVerification: "required"
+    };
+
+    const details = await authenticator.assertionDetails(
+      "https://signin.amazon.com",
+      request
+    );
+    assert.deepEqual(
+      details.credentials.map((credential) => credential.credentialId),
+      [created.id]
+    );
+
+    await vault.trashItem(created.id);
+    await assert.rejects(
+      () =>
+        authenticator.assertionDetails(
+          "https://signin.amazon.com",
+          request
+        ),
+      (error) =>
+        error instanceof PureExtensionError &&
+        error.code === "CREDENTIAL_NOT_FOUND"
+    );
+  });
+
   it("encrypts records, stays unlocked, and rejects a wrong password", async () => {
     await authenticator.makeCredential(
       "https://amazon.com",
