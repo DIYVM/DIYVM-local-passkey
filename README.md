@@ -9,6 +9,8 @@
   </p>
   <p>
     <a href="./README_EN.md">English</a> ·
+    <a href="https://chromewebstore.google.com/detail/ifebfcfmpopbnapeggigmpnjkkjfjcdb">Chrome 商店安装</a> ·
+    <a href="https://diyvm.github.io/DIYVM-local-passkey/amazon-passkey-guide.html">在线图文教程</a> ·
     <a href="./CHANGELOG.md">更新记录</a> ·
     <a href="./docs/privacy-policy.md">隐私政策</a> ·
     <a href="./docs/security-boundary.md">安全边界</a> ·
@@ -110,6 +112,11 @@ npm run build:store
 ```
 
 ## 使用流程
+
+第一次使用？先看[从安装插件开始的 Amazon 通行密钥图文教程](https://diyvm.github.io/DIYVM-local-passkey/amazon-passkey-guide.html)。
+教程内可直接打开[Chrome 商店安装页](https://chromewebstore.google.com/detail/ifebfcfmpopbnapeggigmpnjkkjfjcdb)，无需搜索。
+也可[下载 HTML 离线阅读](https://raw.githubusercontent.com/DIYVM/DIYVM-local-passkey/main/docs/amazon-passkey-guide.html)；图片、样式和脚本全部内置。
+GitHub Pages 从本仓库 `main` 分支的 `docs/` 发布；更新教程并推送后会自动更新网页。
 
 1. 打开扩展并设置主密码，或用原主密码解锁已有保险库；只在个人可信设备上选择
    “信任此设备”。

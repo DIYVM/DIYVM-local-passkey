@@ -9,6 +9,8 @@
   </p>
   <p>
     <a href="./README.md">中文</a> ·
+    <a href="https://chromewebstore.google.com/detail/ifebfcfmpopbnapeggigmpnjkkjfjcdb">Install from Chrome Web Store</a> ·
+    <a href="https://diyvm.github.io/DIYVM-local-passkey/amazon-passkey-guide.html">Illustrated guide (Chinese)</a> ·
     <a href="./CHANGELOG.md">Changelog</a> ·
     <a href="./docs/privacy-policy.md">Privacy Policy</a> ·
     <a href="./docs/security-boundary.md">Security Boundary</a>
